@@ -1,0 +1,9 @@
+.env
+*.db
+*.sqlite*
+backups/
+*.pem
+id_*
+godaddy_vps*
+__pycache__/
+.venv/

@@ -1,0 +1,4 @@
+1. Make a project folder, run `git init`, and unzip this kit into it.
+2. Install Claude Code (see Anthropic's docs) and sign in with your Console API key.
+3. Open a terminal in the folder, run `claude`, and paste the ONE master prompt from the Word guide.
+4. Claude works through TASKS.md. When it stops at [STOP], do the manual step, then type: continue
