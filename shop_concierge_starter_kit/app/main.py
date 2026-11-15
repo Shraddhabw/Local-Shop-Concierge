@@ -54,7 +54,7 @@ def create_app(settings=None):
             request.state.kind, request.state.shop_slug = "shop", host[: -len(base) - 1]
         else:
             request.state.kind, request.state.shop_slug = "unknown", None
-        if path != "/healthz" and (
+        if path not in ("/healthz", "/internal/tls-ask") and (
                 request.state.kind == "unknown"
                 or (request.state.kind == "shop" and path.startswith(OWNER_PREFIXES))):
             response = PlainTextResponse("Not found", status_code=404)
@@ -67,8 +67,8 @@ def create_app(settings=None):
         response.headers.setdefault("Cache-Control", "no-store")
         return response
 
-    from .routers import auth_routes, chat, contact, owner, public
-    for module in (auth_routes, chat, contact, owner, public):
+    from .routers import auth_routes, chat, contact, internal, owner, public
+    for module in (auth_routes, chat, contact, internal, owner, public):
         app.include_router(module.router)
 
     @app.get("/healthz", include_in_schema=False)

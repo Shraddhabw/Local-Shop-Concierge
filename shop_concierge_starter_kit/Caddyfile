@@ -1,0 +1,39 @@
+{
+	email {$ACME_EMAIL}
+	# Certificates for shop subdomains are issued on demand, but ONLY if the app says the slug exists.
+	on_demand_tls {
+		ask http://app:8000/internal/tls-ask
+	}
+}
+
+(common) {
+	encode zstd gzip
+	# Never expose the internal endpoints (tls-ask) to the internet.
+	@internal path /internal /internal/*
+	respond @internal 404
+
+	reverse_proxy app:8000 {
+		# Replace anything the client sent: the app trusts only this value, from this container.
+		header_up X-Forwarded-For {remote_host}
+		# Defaults only (?): the app sets stricter values itself, e.g. the widget page allows framing.
+		header_down ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		header_down ?X-Content-Type-Options "nosniff"
+		header_down ?X-Frame-Options "DENY"
+		header_down ?Referrer-Policy "strict-origin-when-cross-origin"
+		header_down ?Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
+		header_down -Server
+	}
+}
+
+# Apex and www: ordinary certificates, owner dashboard lives here
+{$BASE_DOMAIN}, www.{$BASE_DOMAIN} {
+	import common
+}
+
+# Every other host (shop subdomains): on-demand TLS, public page and chat only (the app enforces it)
+https:// {
+	tls {
+		on_demand
+	}
+	import common
+}

@@ -1,0 +1,83 @@
+# Local Shop Concierge: app + Caddy (HTTPS) + nightly backup. Secrets live only in ./.env (never in git).
+name: shopconcierge
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/shop_concierge.db
+      # Only the Caddy network may set X-Forwarded-For and call /internal/tls-ask
+      TRUSTED_PROXIES: 172.28.0.0/24
+    volumes:
+      - app_data:/data
+    networks: [web]
+    expose: ["8000"]            # not published: only Caddy can reach it
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data         # certificates: keep this volume
+      - caddy_config:/config
+    networks: [web]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  backup:
+    build: .
+    restart: unless-stopped
+    command: ["python", "scripts/backup_db.py", "--loop"]
+    environment:
+      DATABASE_PATH: /data/shop_concierge.db
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: "14"
+      BACKUP_HOUR_UTC: "21"      # 21:00 UTC = 02:30 IST, a quiet hour
+    volumes:
+      - app_data:/data
+      - backups:/backups
+    networks: [web]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+networks:
+  web:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  app_data:
+  backups:
+  caddy_data:
+  caddy_config:
