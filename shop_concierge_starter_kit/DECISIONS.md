@@ -7,4 +7,4 @@
 - T1: honesty rule: if the question contains a meaningful word that appears nowhere in the shop's data (e.g. "tattoo", "physics"), the engine answers "I don't know" and offers to take details instead of guessing from partial matches.
 - T1: a not-found reply deliberately contains no currency symbols or digits.
 - T1: reserved slugs also include ftp, smtp, imap, pop, ns1, ns2, webmail, dashboard, login, register, internal, s, demo (the demo shops use `demo-*` names, which are allowed).
-- Env: python3 here has no pip/venv; pytest could not be installed without sudo (see handoff note).
+- Env: use .venv (python3 -m venv .venv; .venv/bin/pip install -r requirements-dev.txt); run tests with .venv/bin/python -m pytest.
