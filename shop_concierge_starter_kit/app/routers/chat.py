@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from .. import answer as engine, global_lookups as g, repo
+from .. import answer as engine, global_lookups as g, mailer, repo
 from ..ratelimit import client_ip
 from ..web import get_conn
 
@@ -66,4 +66,11 @@ def lead(body: LeadIn, request: Request, conn=Depends(get_conn)):
         repo.add_lead(conn, shop["id"], body.name, body.contact, body.message)
     except ValueError:
         return _err(400, "Please enter your name and a phone number or email.")
+    # the customer confirmed (consent checked), so the owner may now be alerted
+    alert = (f"New lead for {shop['name']}\n\nName: {body.name.strip()}\n"
+             f"Contact: {body.contact.strip()}\nQuestion: {body.message.strip()}\n\n"
+             "The customer agreed to share these details with you.")
+    for email in repo.owner_emails(conn, shop["id"]):
+        mailer.send_email(email, f"New lead: {mailer.clean_header(body.name, 60)}", alert,
+                          echo=st.settings.dev_log_emails)
     return {"ok": True, "message": "Thank you! The shop will contact you soon."}

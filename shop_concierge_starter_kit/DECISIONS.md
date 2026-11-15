@@ -19,3 +19,7 @@
 - T4: "Suggest FAQ" shows a draft with the question prefilled and an empty answer box (no AI). Nothing is saved until the owner clicks "Approve and add".
 - T4: QR code points to `BASE_URL/s/{slug}` (works without wildcard DNS). Set `BASE_URL=http://localhost:PORT` for local runs.
 - T4: local click-through: `scripts/seed.py --owner-email ... --owner-password ...` creates a verified dev owner for demo-salon; `DEV_LOG_EMAILS=true` prints verification emails to the console.
+- T5: with no SMTP_PASSWORD the mailer runs in memory mode (OUTBOX, nothing sent); with it set, mail is sent from a small background thread pool (2 workers), 10 s timeout, one retry for temporary errors only (never for a wrong password). Logs contain only the error type and SMTP code.
+- T5: lead alerts go to the verified owner email(s) of that shop, only after the customer ticked consent. The alert contains the name, contact and question the customer typed.
+- T5: `/contact` is the platform's own contact form (sends to CONTACT_RECIPIENT) and is apex-only. Tests clear SMTP_* env vars so they can never send real email.
+- T5: `scripts/send_test_email.py` was written but NOT run (no real emails are sent by the agent).

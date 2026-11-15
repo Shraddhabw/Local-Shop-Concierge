@@ -20,7 +20,7 @@ SECURITY_HEADERS = {
                                 "style-src 'self'; script-src 'self'; frame-ancestors 'none'; "
                                 "form-action 'self'; base-uri 'none'"),
 }
-OWNER_PREFIXES = ("/register", "/login", "/logout", "/verify", "/dashboard")
+OWNER_PREFIXES = ("/register", "/login", "/logout", "/verify", "/dashboard", "/contact")
 APEX_ONLY_NOTE = "owner pages are 404 on shop subdomains"
 
 
@@ -35,7 +35,7 @@ def create_app(settings=None):
     app.state.limits = {
         "register": RateLimiter(5, 3600, on), "login_ip": RateLimiter(10, 900, on),
         "login_email": RateLimiter(5, 900, on), "verify": RateLimiter(20, 3600, on),
-        "chat": RateLimiter(30, 60, on), "lead": RateLimiter(5, 3600, on),
+        "chat": RateLimiter(30, 60, on), "lead": RateLimiter(5, 3600, on), "contact": RateLimiter(3, 3600, on),
     }
     app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 
@@ -63,8 +63,8 @@ def create_app(settings=None):
         response.headers.setdefault("Cache-Control", "no-store")
         return response
 
-    from .routers import auth_routes, chat, owner, public
-    for module in (auth_routes, chat, owner, public):
+    from .routers import auth_routes, chat, contact, owner, public
+    for module in (auth_routes, chat, contact, owner, public):
         app.include_router(module.router)
 
     @app.get("/healthz", include_in_schema=False)

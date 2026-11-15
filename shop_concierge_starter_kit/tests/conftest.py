@@ -42,3 +42,10 @@ def salon(conn):
 @pytest.fixture
 def two_shops(conn):
     return _salon(conn), _repair(conn)
+
+
+@pytest.fixture(autouse=True)
+def _never_send_real_email(monkeypatch):
+    """Tests must never reach a real SMTP server, even if the developer's shell has SMTP_* set."""
+    for name in ("SMTP_PASSWORD", "SMTP_USER", "MAIL_FROM", "CONTACT_RECIPIENT"):
+        monkeypatch.delenv(name, raising=False)

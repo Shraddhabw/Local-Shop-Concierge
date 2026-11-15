@@ -351,3 +351,9 @@ def replace_week_hours(conn, shop_id, week):
         conn.execute("INSERT INTO hours (shop_id, weekday, open_time, close_time, closed) "
                      "VALUES (?,?,?,?,?)", (shop_id, r["weekday"], r["open_time"], r["close_time"], r["closed"]))
     conn.commit()
+
+
+def owner_emails(conn, shop_id):
+    """Emails of this shop's verified owners (used for lead alerts)."""
+    return [r["email"] for r in conn.execute(
+        "SELECT email FROM users WHERE shop_id = ? AND verified = 1", (_sid(shop_id),))]
