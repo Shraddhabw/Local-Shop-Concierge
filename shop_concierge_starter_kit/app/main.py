@@ -28,6 +28,9 @@ def create_app(settings=None):
     settings = settings or Settings()
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
+    conn = db.connect()
+    db.init_db(conn)                      # idempotent: creates tables on a fresh server volume
+    conn.close()
     from .ai.chat_ai import AIService
     app.state.ai = AIService(settings)
     app.state.templates = Jinja2Templates(directory=str(BASE / "templates"))

@@ -172,3 +172,15 @@ def test_backup_cli_and_schedule(tmp_path, capsys):
     now = datetime(2026, 11, 15, 10, 0, tzinfo=timezone.utc)
     assert backup_db.seconds_until(21, now) == 11 * 3600
     assert backup_db.seconds_until(9, now) == 23 * 3600
+
+
+def test_app_creates_missing_database_on_startup(tmp_path, monkeypatch):
+    path = tmp_path / "fresh" / "new.db"
+    monkeypatch.setenv("SECRET_KEY", "k" * 40)
+    monkeypatch.setenv("BASE_DOMAIN", "example.com")
+    monkeypatch.setenv("DATABASE_PATH", str(path))
+    c = TestClient(create_app(), base_url="https://example.com", follow_redirects=False)
+    assert path.exists()
+    assert c.get("/").status_code == 200 and c.get("/s/nope-shop").status_code == 404
+    create_app()                                                     # second start keeps the data
+    assert sqlite3.connect(path).execute("SELECT COUNT(*) FROM shops").fetchone()[0] == 0
