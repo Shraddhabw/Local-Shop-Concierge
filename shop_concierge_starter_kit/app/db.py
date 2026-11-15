@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   pw_hash TEXT NOT NULL,
   verified INTEGER NOT NULL DEFAULT 0,
   verify_token_hash TEXT,
+  verify_expires TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS sessions (
@@ -99,7 +100,7 @@ def connect(path=None) -> sqlite3.Connection:
     path = str(path or database_path())
     if path != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=10)
+    conn = sqlite3.connect(path, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     if path != ":memory:":

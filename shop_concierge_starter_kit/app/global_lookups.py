@@ -79,3 +79,74 @@ def tls_ask_allowed(conn, domain, base_domain):
         return False
     label = domain[: -(len(base) + 1)]
     return "." not in label and slug_exists(conn, label)
+
+
+# ---- sessions and email verification (start from a token, not a shop_id) ----
+import hashlib  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+
+def _now():
+    return datetime.now(timezone.utc)
+
+
+def _iso(dt):
+    return dt.isoformat(timespec="seconds")
+
+
+def hash_token(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def set_verify_token(conn, user_id, token, hours=48):
+    conn.execute("UPDATE users SET verify_token_hash = ?, verify_expires = ? WHERE id = ?",
+                 (hash_token(token), _iso(_now() + timedelta(hours=hours)), user_id))
+    conn.commit()
+
+
+def consume_verify_token(conn, token):
+    """Mark the user verified if the token is valid, unexpired and unused. One use only."""
+    if not isinstance(token, str) or not token:
+        return False
+    row = conn.execute("SELECT id, verify_expires FROM users WHERE verify_token_hash = ?",
+                       (hash_token(token),)).fetchone()
+    if row is None or row["verify_expires"] < _iso(_now()):
+        return False
+    conn.execute("UPDATE users SET verified = 1, verify_token_hash = NULL, verify_expires = NULL "
+                 "WHERE id = ?", (row["id"],))
+    conn.commit()
+    return True
+
+
+def create_session(conn, user_id, token, days=7):
+    conn.execute("INSERT INTO sessions (id, user_id, expires) VALUES (?,?,?)",
+                 (hash_token(token), user_id, _iso(_now() + timedelta(days=days))))
+    conn.commit()
+
+
+def get_session_user(conn, token):
+    if not isinstance(token, str) or not token:
+        return None
+    row = conn.execute(
+        "SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id "
+        "WHERE s.id = ? AND s.expires > ? AND u.verified = 1",
+        (hash_token(token), _iso(_now()))).fetchone()
+    return dict(row) if row else None
+
+
+def delete_session(conn, token):
+    if isinstance(token, str) and token:
+        conn.execute("DELETE FROM sessions WHERE id = ?", (hash_token(token),))
+        conn.commit()
+
+
+def slug_for_name(conn, name):
+    """Pick a unique, valid, non-reserved slug from a shop name."""
+    base = re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", name.lower())).strip("-")[:30].strip("-")
+    if len(base) < 3:
+        base = (base + "-shop").strip("-")
+    candidate, n = base, 1
+    while not valid_slug(candidate) or candidate in RESERVED_SLUGS or slug_exists(conn, candidate):
+        n += 1
+        candidate = f"{base}-{n}"
+    return candidate

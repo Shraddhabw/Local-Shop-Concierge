@@ -8,3 +8,8 @@
 - T1: a not-found reply deliberately contains no currency symbols or digits.
 - T1: reserved slugs also include ftp, smtp, imap, pop, ns1, ns2, webmail, dashboard, login, register, internal, s, demo (the demo shops use `demo-*` names, which are allowed).
 - Env: use .venv (python3 -m venv .venv; .venv/bin/pip install -r requirements-dev.txt); run tests with .venv/bin/python -m pytest.
+- T3: CSRF uses a random `csrf` cookie plus a form field = HMAC(SECRET_KEY, cookie); works before and after login. Session ids are stored hashed (sha256) in `sessions`. Verification tokens are stored hashed, single use, 48h expiry.
+- T3: registering with an email that already exists returns the same "check your email" page (no account enumeration) and sends nothing. There is no "resend link" yet; an unverified owner re-registers after the token expires is NOT supported, so a resend route should be added in T4/T5 if needed.
+- T3: mailer.send_email is an in-memory outbox stub until T5 (no real email is sent).
+- T3: requests whose Host is not BASE_DOMAIN, www.BASE_DOMAIN or a single-label subdomain get 404 (except /healthz). Owner paths (/register /login /logout /verify /dashboard) are 404 on shop subdomains.
+- T3: SECRET_KEY must be 32+ chars and not start with "change-me", otherwise the app refuses to start.
