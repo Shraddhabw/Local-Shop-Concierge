@@ -310,3 +310,44 @@ def resolve_unanswered(conn, shop_id, item_id, faq_id):
         (faq_id, _id(item_id), shop_id))
     conn.commit()
     return cur.rowcount > 0
+
+
+# ---- analytics ----
+def record_chat_event(conn, shop_id):
+    conn.execute("INSERT INTO chat_events (shop_id) VALUES (?)", (_sid(shop_id),))
+    conn.commit()
+
+
+def _since(days):
+    from datetime import timedelta
+    return (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def count_chats_since(conn, shop_id, days=7):
+    return conn.execute("SELECT COUNT(*) FROM chat_events WHERE shop_id = ? AND ts >= ?",
+                        (_sid(shop_id), _since(days))).fetchone()[0]
+
+
+def count_leads_since(conn, shop_id, days=7):
+    return conn.execute("SELECT COUNT(*) FROM leads WHERE shop_id = ? AND created_at >= ?",
+                        (_sid(shop_id), _since(days))).fetchone()[0]
+
+
+def get_unanswered(conn, shop_id, item_id):
+    return _get(conn, "unanswered_questions", _sid(shop_id), _id(item_id))
+
+
+def replace_week_hours(conn, shop_id, week):
+    """week: {weekday: (open, close) or None for closed}. Replaces all hours rows atomically."""
+    _sid(shop_id)
+    rows = []
+    for day in range(7):
+        span = week.get(day)
+        rows.append(dict(weekday=day, open_time=span[0] if span else None,
+                         close_time=span[1] if span else None, closed=span is None))
+    cleaned = [_check_hours(_clean_row("hours", r)) for r in rows]      # validate before deleting
+    conn.execute("DELETE FROM hours WHERE shop_id = ?", (shop_id,))
+    for r in cleaned:
+        conn.execute("INSERT INTO hours (shop_id, weekday, open_time, close_time, closed) "
+                     "VALUES (?,?,?,?,?)", (shop_id, r["weekday"], r["open_time"], r["close_time"], r["closed"]))
+    conn.commit()

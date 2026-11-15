@@ -11,7 +11,7 @@ Dates: project submission 20 November 2026. Live demo 11 December 2026, so the d
 
 - [x] T3 Auth. Goal: register (shop name, email, password) creating a shop and unique slug, email verification link, login/logout, argon2, CSRF, rate limits, reserved-slug blocking (www, admin, api, mail, app, static). Done when: tests pass.
 
-- [ ] T4 Owner dashboard and public page. Goal: CRUD for services, hours, FAQs; leads table; analytics card (chats this week, leads, top unanswered questions with a "suggest FAQ" button that shows a DRAFT the owner must approve); public page /s/{slug} with services, hours, QR code and WhatsApp button; chat widget; embeddable /widget.js?shop={slug}. Landing page with "Try the live demo". Done when: I can click through it locally.
+- [x] T4 Owner dashboard and public page. Goal: CRUD for services, hours, FAQs; leads table; analytics card (chats this week, leads, top unanswered questions with a "suggest FAQ" button that shows a DRAFT the owner must approve); public page /s/{slug} with services, hours, QR code and WhatsApp button; chat widget; embeddable /widget.js?shop={slug}. Landing page with "Try the live demo". Done when: I can click through it locally.
 
 - [ ] T5 Email and contact form. Goal: Titan SMTP module from env vars (465 SSL or 587 STARTTLS), background sending, header-injection protection, timeouts, one retry, no secrets in logs; /contact form with honeypot and rate limit; scripts/send_test_email.py with a troubleshooting checklist; /healthz. Lead alerts are sent only after the customer confirmed sharing their details. Done when: tests pass with SMTP mocked.
 

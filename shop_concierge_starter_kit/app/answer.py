@@ -316,3 +316,8 @@ def _answer(conn, shop_id, message, now):
     if r[0][3]["kind"] == "faq":
         return faq_answer(r)
     return _service_answer(shop, _top_group(r), "general")
+
+
+def hours_rows(hours):
+    """[(day name, 'Closed' | '10:00 AM to 8:00 PM' | None if unknown)] for display."""
+    return [(_DAY_NAMES[d], _day_text([r for r in hours if r["weekday"] == d])) for d in range(7)]

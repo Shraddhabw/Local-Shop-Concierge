@@ -122,8 +122,17 @@ def seed(conn):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=None)
+    ap.add_argument("--owner-email", help="LOCAL DEV ONLY: also create a verified owner for demo-salon")
+    ap.add_argument("--owner-password", help="password for --owner-email (10+ characters)")
     args = ap.parse_args()
     c = db.connect(args.db)
     db.init_db(c)
     seed(c)
     print("Seeded:", ", ".join(SHOPS))
+    if args.owner_email and args.owner_password:
+        from app import security
+        shop = g.get_shop_by_slug(c, "demo-salon")
+        uid = g.create_user(c, shop["id"], args.owner_email, security.hash_password(args.owner_password))
+        c.execute("UPDATE users SET verified = 1 WHERE id = ?", (uid,))
+        c.commit()
+        print("Created verified dev owner for demo-salon:", args.owner_email)

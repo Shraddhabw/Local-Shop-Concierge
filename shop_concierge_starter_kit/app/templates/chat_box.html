@@ -1,0 +1,17 @@
+<section id="chat" data-slug="{{ shop.slug }}" class="chat">
+  <div id="chat-log" class="chat-log" aria-live="polite"></div>
+  <form id="chat-form" class="chat-form">
+    <input id="chat-input" maxlength="300" placeholder="Ask a question..." autocomplete="off" aria-label="Your question">
+    <button class="btn" type="submit">Send</button>
+  </form>
+  <div id="lead-box" hidden class="lead-box">
+    <p>Want the shop to call you back? Leave your details.</p>
+    <form id="lead-form">
+      <label>Name <input name="name" required maxlength="120"></label>
+      <label>Phone or email <input name="contact" required maxlength="200"></label>
+      <label class="check"><input type="checkbox" name="consent"> I agree to share these details with {{ shop.name }}.</label>
+      <button class="btn" type="submit">Send my details</button>
+    </form>
+  </div>
+</section>
+<script src="/static/chat.js" defer></script>

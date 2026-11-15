@@ -1,0 +1,14 @@
+{% extends "dash_base.html" %}
+{% block title %}Shop details{% endblock %}
+{% block content %}
+<h1>Shop details</h1>
+<form method="post" action="/dashboard/profile" class="row">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Shop name <input name="name" value="{{ shop.name }}" required maxlength="120"></label>
+  <label>Address <input name="address" value="{{ shop.address }}" maxlength="300"></label>
+  <label>Phone <input name="phone" value="{{ shop.phone }}" maxlength="40"></label>
+  <label>WhatsApp number (with country code) <input name="whatsapp" value="{{ shop.whatsapp }}" maxlength="40"></label>
+  <label>Currency code <input name="currency" value="{{ shop.currency }}" maxlength="3" required></label>
+  <button class="btn" type="submit">Save</button>
+</form>
+{% endblock %}

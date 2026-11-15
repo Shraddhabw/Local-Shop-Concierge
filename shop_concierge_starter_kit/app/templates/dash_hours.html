@@ -1,0 +1,17 @@
+{% extends "dash_base.html" %}
+{% block title %}Hours{% endblock %}
+{% block content %}
+<h1>Opening hours</h1>
+<form method="post" action="/dashboard/hours">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <table>
+  {% for i, name, row in days %}
+  <tr><td>{{ name }}</td>
+    <td><input type="time" name="open_{{ i }}" value="{{ row.open_time if row and row.open_time else '09:00' }}"></td>
+    <td><input type="time" name="close_{{ i }}" value="{{ row.close_time if row and row.close_time else '18:00' }}"></td>
+    <td><label class="check"><input type="checkbox" name="closed_{{ i }}" value="1"{% if row and row.closed %} checked{% endif %}> Closed</label></td></tr>
+  {% endfor %}
+  </table>
+  <button class="btn" type="submit">Save hours</button>
+</form>
+{% endblock %}

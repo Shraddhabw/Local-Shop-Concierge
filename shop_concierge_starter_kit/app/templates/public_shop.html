@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ shop.name }}{% endblock %}
+{% block body %}
+<h1>{{ shop.name }}</h1>
+{% if shop.address %}<p>{{ shop.address }}</p>{% endif %}
+<p>
+{% if shop.phone %}<a class="btn" href="tel:{{ shop.phone }}">Call</a>{% endif %}
+{% if whatsapp %}<a class="btn green" href="{{ whatsapp }}" rel="noopener">WhatsApp</a>{% endif %}
+</p>
+<h2>Ask a question</h2>
+{% include "chat_box.html" %}
+<h2>Services</h2>
+{% if services %}
+<table>
+{% for s in services %}
+<tr><td>{{ s.name }}{% if s.description %}<br><span class="note">{{ s.description }}</span>{% endif %}</td>
+<td class="right">{% if s.price is not none %}{{ money(shop, s.price) }}{% else %}Ask us{% endif %}{% if s.duration_min %}<br><span class="note">{{ s.duration_min }} min</span>{% endif %}</td></tr>
+{% endfor %}
+</table>
+{% else %}<p class="note">Services coming soon.</p>{% endif %}
+<h2>Opening hours</h2>
+<table>
+{% for day, text in hours %}<tr><td>{{ day }}</td><td class="right">{{ text or "Not listed" }}</td></tr>{% endfor %}
+</table>
+<h2>Share this page</h2>
+<div class="qr" role="img" aria-label="QR code for this page">{{ qr | safe }}</div>
+<p class="note">{{ url }}</p>
+{% endblock %}

@@ -13,6 +13,8 @@ class Settings:
         env = os.environ.get
         self.secret_key = env("SECRET_KEY", "")
         self.base_domain = env("BASE_DOMAIN", "example.com").strip().lower()
+        self.base_url = env("BASE_URL", f"https://{self.base_domain}").rstrip("/")
+        self.dev_log_emails = env("DEV_LOG_EMAILS", "false").lower() == "true"
         self.trusted_proxies = [p.strip() for p in env("TRUSTED_PROXIES", "").split(",") if p.strip()]
         self.session_days = int(env("SESSION_DAYS", "7"))
         self.verify_hours = int(env("VERIFY_HOURS", "48"))

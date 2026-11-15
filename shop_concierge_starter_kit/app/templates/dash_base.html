@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block body %}
+<header class="dash-head"><strong>{{ shop.name }}</strong>
+<form method="post" action="/logout" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link" type="submit">Log out</button></form></header>
+<nav class="nav">
+{% for key, label, href in [("home","Home","/dashboard"),("services","Services","/dashboard/services"),("hours","Hours","/dashboard/hours"),("faqs","FAQs","/dashboard/faqs"),("leads","Leads","/dashboard/leads"),("profile","Shop details","/dashboard/profile")] %}
+<a href="{{ href }}"{% if active == key %} class="on"{% endif %}>{{ label }}</a>
+{% endfor %}
+</nav>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% block content %}{% endblock %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "dash_base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+<h1>Leads</h1>
+<p class="note">People who asked the shop to contact them and agreed to share their details.</p>
+{% if leads %}
+<table>
+<tr><th>When</th><th>Name</th><th>Contact</th><th>Question</th><th></th></tr>
+{% for l in leads %}
+<tr><td>{{ l.created_at }}</td><td>{{ l.name }}</td><td>{{ l.contact }}</td><td>{{ l.message }}</td>
+<td><form method="post" action="/dashboard/leads/{{ l.id }}/delete" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link" type="submit">Delete</button></form></td></tr>
+{% endfor %}
+</table>
+{% else %}<p>No leads yet.</p>{% endif %}
+{% endblock %}

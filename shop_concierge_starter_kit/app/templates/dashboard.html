@@ -1,10 +1,22 @@
-{% extends "base.html" %}
+{% extends "dash_base.html" %}
 {% block title %}Dashboard{% endblock %}
-{% block body %}
-<h1>{{ shop.name }}</h1>
+{% block content %}
+<div class="stats">
+  <div class="stat"><span class="num">{{ chats }}</span> chats this week</div>
+  <div class="stat"><span class="num">{{ leads }}</span> leads this week</div>
+</div>
 <p>Your public page: <a href="/s/{{ shop.slug }}">/s/{{ shop.slug }}</a></p>
-<form method="post" action="/logout">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <button class="btn" type="submit">Log out</button>
-</form>
+<p class="note">Add the chat to your own website: <code>&lt;script src="/widget.js?shop={{ shop.slug }}" defer&gt;&lt;/script&gt;</code> (use your full website address in front of /widget.js).</p>
+<h2>Questions customers asked that I could not answer</h2>
+{% if unanswered %}
+<table>
+{% for q in unanswered %}
+<tr><td>{{ q.question }} <span class="note">(asked {{ q.count }}x)</span></td>
+<td class="actions">
+<form method="post" action="/dashboard/unanswered/{{ q.id }}/suggest" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn small" type="submit">Suggest FAQ</button></form>
+<form method="post" action="/dashboard/unanswered/{{ q.id }}/dismiss" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link" type="submit">Dismiss</button></form>
+</td></tr>
+{% endfor %}
+</table>
+{% else %}<p class="note">Nothing yet. Great!</p>{% endif %}
 {% endblock %}

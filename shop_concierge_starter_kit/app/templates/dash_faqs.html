@@ -1,0 +1,37 @@
+{% extends "dash_base.html" %}
+{% block title %}FAQs{% endblock %}
+{% block content %}
+<h1>Frequently asked questions</h1>
+{% if draft %}
+<section class="draft">
+<h2>Draft FAQ (not saved yet)</h2>
+<p class="note">Type the correct answer, check it, then approve. Nothing is added until you click Approve.</p>
+<form method="post" action="/dashboard/faqs" class="row">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="from_unanswered" value="{{ draft.unanswered_id }}">
+  <label>Question <input name="question" value="{{ draft.question }}" required maxlength="300"></label>
+  <label>Answer <textarea name="answer" required maxlength="1000">{{ draft.answer }}</textarea></label>
+  <label>Keywords <input name="keywords" value="{{ draft.keywords }}" maxlength="300"></label>
+  <button class="btn" type="submit">Approve and add</button>
+</form>
+</section>
+{% endif %}
+{% for f in faqs %}
+<form method="post" action="/dashboard/faqs/{{ f.id }}" class="row">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Question <input name="question" value="{{ f.question }}" required maxlength="300"></label>
+  <label>Answer <textarea name="answer" required maxlength="1000">{{ f.answer }}</textarea></label>
+  <label>Keywords <input name="keywords" value="{{ f.keywords }}" maxlength="300"></label>
+  <button class="btn small" type="submit">Save</button>
+  <button class="link" type="submit" formaction="/dashboard/faqs/{{ f.id }}/delete">Delete</button>
+</form>
+{% endfor %}
+<h2>Add a question</h2>
+<form method="post" action="/dashboard/faqs" class="row">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Question <input name="question" required maxlength="300"></label>
+  <label>Answer <textarea name="answer" required maxlength="1000"></textarea></label>
+  <label>Keywords <input name="keywords" maxlength="300"></label>
+  <button class="btn" type="submit">Add</button>
+</form>
+{% endblock %}

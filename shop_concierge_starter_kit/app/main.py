@@ -21,6 +21,7 @@ SECURITY_HEADERS = {
                                 "form-action 'self'; base-uri 'none'"),
 }
 OWNER_PREFIXES = ("/register", "/login", "/logout", "/verify", "/dashboard")
+APEX_ONLY_NOTE = "owner pages are 404 on shop subdomains"
 
 
 def create_app(settings=None):
@@ -28,10 +29,13 @@ def create_app(settings=None):
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
     app.state.templates = Jinja2Templates(directory=str(BASE / "templates"))
+    from .web import money
+    app.state.templates.env.globals["money"] = money
     on = settings.rate_limits_enabled
     app.state.limits = {
         "register": RateLimiter(5, 3600, on), "login_ip": RateLimiter(10, 900, on),
         "login_email": RateLimiter(5, 900, on), "verify": RateLimiter(20, 3600, on),
+        "chat": RateLimiter(30, 60, on), "lead": RateLimiter(5, 3600, on),
     }
     app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 
@@ -53,12 +57,15 @@ def create_app(settings=None):
         else:
             response = await call_next(request)
         for k, v in SECURITY_HEADERS.items():
+            if k == "X-Frame-Options" and path.startswith("/embed/"):
+                continue                      # the chat iframe page is meant to be embedded
             response.headers.setdefault(k, v)
         response.headers.setdefault("Cache-Control", "no-store")
         return response
 
-    from .routers import auth_routes
-    app.include_router(auth_routes.router)
+    from .routers import auth_routes, chat, owner, public
+    for module in (auth_routes, chat, owner, public):
+        app.include_router(module.router)
 
     @app.get("/healthz", include_in_schema=False)
     def healthz():

@@ -4,48 +4,13 @@ import re
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from .. import db, global_lookups as g, mailer, repo, security
+from .. import global_lookups as g, mailer, repo, security
+from ..web import (bad_csrf as _bad_csrf, csrf_ok as _csrf_ok, current_user, get_conn,
+                   render as _render, too_many as _too_many)
 from ..ratelimit import client_ip
 
 router = APIRouter()
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-def get_conn():
-    conn = db.connect()
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
-def _render(request, name, status=200, **ctx):
-    """Render a template with a CSRF token; sets the csrf cookie if the visitor has none."""
-    st = request.app.state.settings
-    cookie = request.cookies.get("csrf") or security.new_token()
-    ctx["csrf_token"] = security.csrf_field_for(st.secret_key, cookie)
-    response = request.app.state.templates.TemplateResponse(request, name, ctx, status_code=status)
-    if request.cookies.get("csrf") != cookie:
-        response.set_cookie("csrf", cookie, max_age=86400, **security.COOKIE_OPTS)
-    return response
-
-
-def _csrf_ok(request, token):
-    return security.csrf_ok(request.app.state.settings.secret_key, request.cookies.get("csrf"), token)
-
-
-def _too_many(request):
-    return _render(request, "message.html", 429, title="Slow down",
-                   message="Too many attempts. Please wait a few minutes and try again.")
-
-
-def _bad_csrf(request):
-    return _render(request, "message.html", 400, title="Please try again",
-                   message="Your form expired. Please go back, reload the page and try again.")
-
-
-def current_user(request: Request, conn=Depends(get_conn)):
-    return g.get_session_user(conn, request.cookies.get("session"))
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -79,9 +44,10 @@ def register(request: Request, shop_name: str = Form(""), email: str = Form(""),
             user_id = g.create_user(conn, shop_id, email, security.hash_password(password))
             token = security.new_token()
             g.set_verify_token(conn, user_id, token, st.settings.verify_hours)
-            link = f"https://{st.settings.base_domain}/verify?token={token}"
+            link = f"{st.settings.base_url}/verify?token={token}"
             mailer.send_email(email, "Confirm your email",
-                              f"Welcome! Open this link to confirm your email:\n{link}\n")
+                              f"Welcome! Open this link to confirm your email:\n{link}\n",
+                              echo=st.settings.dev_log_emails)
         except ValueError:
             return _render(request, "register.html", 400,
                            error="We could not create that account. Please try different details.",
@@ -140,11 +106,3 @@ def logout(request: Request, csrf_token: str = Form(""), conn=Depends(get_conn))
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie("session", path="/")
     return response
-
-
-@router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, user=Depends(current_user), conn=Depends(get_conn)):
-    if user is None:
-        return RedirectResponse("/login", status_code=303)
-    shop = repo.get_shop(conn, user["shop_id"])      # shop_id comes from the session, never the URL
-    return _render(request, "dashboard.html", shop=shop)
