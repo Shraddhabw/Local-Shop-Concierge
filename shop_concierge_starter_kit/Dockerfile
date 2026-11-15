@@ -23,5 +23,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 
 # ONE worker on purpose: rate limiters and the AI cooldown live in memory.
 # --no-proxy-headers: the app reads X-Forwarded-For itself, and only from the Caddy network.
+# --no-access-log: request URLs such as /verify?token=... must not be written to logs.
 CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--no-proxy-headers"]
+     "--workers", "1", "--no-proxy-headers", "--no-access-log"]

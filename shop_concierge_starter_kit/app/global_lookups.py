@@ -119,6 +119,7 @@ def consume_verify_token(conn, token):
 
 
 def create_session(conn, user_id, token, days=7):
+    conn.execute("DELETE FROM sessions WHERE expires <= ?", (_iso(_now()),))     # purge expired
     conn.execute("INSERT INTO sessions (id, user_id, expires) VALUES (?,?,?)",
                  (hash_token(token), user_id, _iso(_now() + timedelta(days=days))))
     conn.commit()

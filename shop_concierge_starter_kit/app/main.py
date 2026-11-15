@@ -37,7 +37,7 @@ def create_app(settings=None):
     app.state.limits = {
         "register": RateLimiter(5, 3600, on), "login_ip": RateLimiter(10, 900, on),
         "login_email": RateLimiter(5, 900, on), "verify": RateLimiter(20, 3600, on),
-        "chat": RateLimiter(30, 60, on), "lead": RateLimiter(5, 3600, on), "contact": RateLimiter(3, 3600, on),
+        "chat": RateLimiter(30, 60, on), "lead": RateLimiter(5, 3600, on), "lead_shop": RateLimiter(30, 3600, on), "contact": RateLimiter(3, 3600, on),
         "ai_ip": RateLimiter(settings.ai_ip_hourly, 3600, on),
         "import": RateLimiter(5, 3600, on),
     }

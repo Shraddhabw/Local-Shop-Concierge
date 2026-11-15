@@ -24,7 +24,7 @@ Dates: project submission 20 November 2026. Live demo 11 December 2026, so the d
 
 - [ ] T8 Docker and HTTPS. Goal: non-root slim Dockerfile, docker-compose.yml (app + Caddy), Caddyfile with automatic HTTPS for BASE_DOMAIN, www and on-demand TLS for shop subdomains with an "ask" endpoint approving only existing slugs; Host-header routing; named volumes; healthchecks; security headers (HSTS, nosniff, frame-ancestors, CSP); nightly SQLite backup script. Done when: `docker compose config` is valid and the app container builds.
 
-- [ ] T9 Security review. Goal: audit the repo for secrets (files and git history), SQL injection, XSS, CSRF gaps, missing shop_id scoping, weak rate limits, unsafe CORS, secrets in logs. Fix findings. Done when: pytest and evals pass and a findings list is in SECURITY.md.
+- [x] T9 Security review. Goal: audit the repo for secrets (files and git history), SQL injection, XSS, CSRF gaps, missing shop_id scoping, weak rate limits, unsafe CORS, secrets in logs. Fix findings. Done when: pytest and evals pass and a findings list is in SECURITY.md.
 
 - [ ] T10 Deploy. [STOP] You cannot do this part. Print a numbered checklist for me: buy domain and Titan mailbox on godaddy.com, check out the VPS, SSH key, run scripts/server_bootstrap.sh on the server, create /opt/shopconcierge/.env by hand using a SEPARATE server API key with its own low spend limit (AI_DAILY_CAP=100, AI_ENABLED=false at first), DNS records (A for @ and www, wildcard *; do NOT touch Titan MX/SPF/DKIM), then `SERVER=user@ip ./scripts/deploy.sh` and `DOMAIN=mydomain.com ./scripts/check_live.sh`. Remind me to confirm the end dates of the VPS, domain and Titan mailbox are after 11 December 2026. Wait for "continue".
 

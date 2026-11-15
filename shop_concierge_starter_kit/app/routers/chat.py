@@ -68,6 +68,8 @@ def lead(body: LeadIn, request: Request, conn=Depends(get_conn)):
     shop = g.get_shop_by_slug(conn, body.slug)
     if shop is None:
         return _err(404, "Shop not found.")
+    if not st.limits["lead_shop"].allow(shop["id"]):       # many IPs cannot flood one owner's inbox
+        return _err(429, "This shop is receiving many requests. Please try again later.")
     try:
         repo.add_lead(conn, shop["id"], body.name, body.contact, body.message)
     except ValueError:
