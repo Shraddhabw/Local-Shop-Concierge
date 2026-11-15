@@ -44,12 +44,18 @@ def chat(body: ChatIn, request: Request, conn=Depends(get_conn)):
         return _err(400, "Please type a question.")
     if len(message) > engine.MAX_MESSAGE_CHARS:
         return _err(400, f"Please keep your question under {engine.MAX_MESSAGE_CHARS} characters.")
+    ip = client_ip(request, st.settings.trusted_proxies)
     result = engine.answer(shop["id"], message, conn=conn)
+    proposed = None
+    if not result["found"]:                  # keyword engine not confident: try the AI fallback
+        ai = st.ai.try_answer(conn, shop, message, st.limits["ai_ip"], ip)
+        if ai is not None:
+            result, proposed = ai, ai["proposed_lead"]
     repo.record_chat_event(conn, shop["id"])
     if not result["found"]:
         repo.log_unanswered(conn, shop["id"], message)
     return {"answer": result["answer"], "found": result["found"],
-            "needs_human": result["needs_human"]}
+            "needs_human": result["needs_human"], "proposed_lead": proposed}
 
 
 @router.post("/lead")

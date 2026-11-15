@@ -30,7 +30,11 @@
     post("/api/chat", { slug: slug, message: text }).then(function (res) {
       if (!res.ok) { add(res.data.error || "Something went wrong. Please try again.", "bot"); return; }
       add(res.data.answer, "bot");
-      leadBox.hidden = !res.data.needs_human;
+      leadBox.hidden = !(res.data.needs_human || res.data.proposed_lead);
+      if (res.data.proposed_lead) {            // AI staged a lead: prefill, customer must tick consent
+        leadForm.name.value = res.data.proposed_lead.name || "";
+        leadForm.contact.value = res.data.proposed_lead.contact || "";
+      }
     }).catch(function () { add("Could not reach the shop. Please try again.", "bot"); });
   });
   leadForm.addEventListener("submit", function (e) {

@@ -36,16 +36,25 @@ def check(case, result):
     return why
 
 
-def main():
+def build_ai():
+    """Real AI service from the environment (needs AI_ENABLED=true and ANTHROPIC_API_KEY)."""
+    from app.ai.chat_ai import AIService
+    from app.config import Settings
+    import os
+    os.environ.setdefault("SECRET_KEY", "x" * 40)
+    service = AIService(Settings())
+    return service if service.enabled else None
+
+
+def main(argv=None, ai_service=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--ai", action="store_true", help="use the AI path (needs T6)")
     ap.add_argument("--db", default=None)
-    args = ap.parse_args()
-    if args.ai:
-        try:
-            from app.ai import chat_ai  # noqa: F401
-        except ImportError:
-            print("AI path not available yet (T6 not built). Run without --ai.")
+    args = ap.parse_args(argv)
+    if args.ai and ai_service is None:
+        ai_service = build_ai()
+        if ai_service is None:
+            print("AI path needs AI_ENABLED=true and ANTHROPIC_API_KEY in the environment.")
             return 2
     cases = json.loads((ROOT / "eval" / "cases.json").read_text())["cases"]
     path = args.db or str(Path(tempfile.mkdtemp()) / "eval.db")
@@ -59,13 +68,16 @@ def main():
             result, why = {"answer": ""}, [f"unknown shop {case['shop']}"]
         else:
             result = engine.answer(shop["id"], case["question"], conn=conn)
+            if args.ai and not result["found"]:      # same pipeline as the chat endpoint
+                ai = ai_service.try_answer(conn, shop, case["question"])
+                result = ai if ai is not None else result
             why = check(case, result)
         failed += bool(why)
         print(f"{'FAIL' if why else 'PASS'} {case['id']} [{case['shop']}] {case['question']}")
         if why:
             print(f"     -> {'; '.join(why)}\n     answer: {result['answer']}")
     total = len(cases)
-    print(f"\n{total - failed}/{total} passed, {failed} failed")
+    print(f"\n{total - failed}/{total} passed, {failed} failed" + (" (AI path on)" if args.ai else ""))
     return 1 if failed else 0
 
 

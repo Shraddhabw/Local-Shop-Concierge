@@ -23,3 +23,10 @@
 - T5: lead alerts go to the verified owner email(s) of that shop, only after the customer ticked consent. The alert contains the name, contact and question the customer typed.
 - T5: `/contact` is the platform's own contact form (sends to CONTACT_RECIPIENT) and is apex-only. Tests clear SMTP_* env vars so they can never send real email.
 - T5: `scripts/send_test_email.py` was written but NOT run (no real emails are sent by the agent).
+- T6: the AI is tried only when the keyword engine says not found. Order of gates: AI_ENABLED (read at startup; false means no client is ever built), API key present, 5-minute in-memory cooldown, per-shop daily cap (30), platform daily cap (AI_DAILY_CAP), per-IP hourly cap (10, counted only when an AI call would really happen), 300-character input, max_tokens 300. The call attempt is counted before the request, so errors also use up the cap.
+- T6: `AI_ENABLED=true` with an empty ANTHROPIC_API_KEY silently disables AI (logged as a warning).
+- T6: replies are rejected (then one retry, then keyword fallback) unless strict JSON with exactly the four keys; `found=true` must cite source ids the tools returned this request, and every number in the answer must appear in tool output. This can reject a good answer (safe direction: customer gets the keyword answer plus lead capture).
+- T6: refusal and max_tokens stop reasons fall back without a cooldown; real API errors (rate limit, billing, timeout, connection, 5xx, anything unexpected) set the 5-minute cooldown. Only the error class name is logged.
+- T6: model call uses effort "low", tool_choice auto (never forced), and for claude-haiku-5* thinking disabled so the 300-token limit is not eaten by reasoning. If CLAUDE_MODEL is changed to another model, check that these parameters are accepted.
+- T6: propose_lead returns the staged lead to the widget (`proposed_lead` in the chat response); the form is prefilled and the customer must tick the consent box before /api/lead saves it.
+- T6: `eval/run_evals.py --ai` needs AI_ENABLED=true and ANTHROPIC_API_KEY. It has NOT been run live (waiting for the owner's "continue"); the tests run it against a mocked client.

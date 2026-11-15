@@ -357,3 +357,25 @@ def owner_emails(conn, shop_id):
     """Emails of this shop's verified owners (used for lead alerts)."""
     return [r["email"] for r in conn.execute(
         "SELECT email FROM users WHERE shop_id = ? AND verified = 1", (_sid(shop_id),))]
+
+
+# ---- AI usage (token and call counts per shop per UTC day) ----
+def _today():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def add_ai_usage(conn, shop_id, input_tokens=0, output_tokens=0, calls=0, errors=0):
+    conn.execute(
+        "INSERT INTO ai_usage (shop_id, day, input_tokens, output_tokens, calls, errors) "
+        "VALUES (?,?,?,?,?,?) ON CONFLICT(shop_id, day) DO UPDATE SET "
+        "input_tokens = input_tokens + excluded.input_tokens, "
+        "output_tokens = output_tokens + excluded.output_tokens, "
+        "calls = calls + excluded.calls, errors = errors + excluded.errors",
+        (_sid(shop_id), _today(), int(input_tokens), int(output_tokens), int(calls), int(errors)))
+    conn.commit()
+
+
+def ai_calls_today(conn, shop_id):
+    row = conn.execute("SELECT calls FROM ai_usage WHERE shop_id = ? AND day = ?",
+                       (_sid(shop_id), _today())).fetchone()
+    return row["calls"] if row else 0

@@ -150,3 +150,10 @@ def slug_for_name(conn, name):
         n += 1
         candidate = f"{base}-{n}"
     return candidate
+
+
+def ai_calls_today_total(conn):
+    """Platform-wide AI calls today (for AI_DAILY_CAP). Aggregate only; exposes no shop data."""
+    row = conn.execute("SELECT COALESCE(SUM(calls), 0) AS n FROM ai_usage WHERE day = ?",
+                       (_now().strftime("%Y-%m-%d"),)).fetchone()
+    return row["n"]
