@@ -98,7 +98,7 @@ Tests and evals:
 
 ## Environment variables
 
-Set in `.env` (never committed; `.env.example` lists them all).
+Set in `.env` (never committed; `.env.example` lists them all). Compose reads `.env` by default; to use another file (for example a throwaway one for testing) set `ENV_FILE`, e.g. `ENV_FILE=/tmp/test.env docker compose --env-file /tmp/test.env config`.
 
 | Variable | Meaning | Default |
 |---|---|---|

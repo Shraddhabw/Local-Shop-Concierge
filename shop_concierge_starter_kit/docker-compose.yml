@@ -5,7 +5,7 @@ services:
   app:
     build: .
     restart: unless-stopped
-    env_file: .env
+    env_file: ${ENV_FILE:-.env}
     environment:
       DATABASE_PATH: /data/shop_concierge.db
       # Only the Caddy network may set X-Forwarded-For and call /internal/tls-ask
