@@ -3,7 +3,7 @@
 Usage:  python scripts/backup_db.py [--db PATH] [--out DIR] [--keep N] [--loop]
 Env defaults: DATABASE_PATH, BACKUP_DIR (default ./backups), BACKUP_KEEP (14), BACKUP_HOUR_UTC (21).
 --loop runs forever: one backup every night at BACKUP_HOUR_UTC.
-Restore: stop the app, gunzip a backup over the database file, start the app (see OPERATIONS.md).
+Restore:  python scripts/backup_db.py --restore BACKUP.db.gz [--db PATH]   (stop the app first; see OPERATIONS.md)
 """
 import argparse
 import gzip
@@ -49,6 +49,31 @@ def backup(db_path, out_dir, keep=14, now=None):
     return target
 
 
+def restore(backup_path, db_path):
+    """Replace the database with a backup. The old database is kept as <db>.before-restore."""
+    backup_path, db_path = Path(backup_path), Path(db_path)
+    if not backup_path.exists():
+        raise FileNotFoundError("backup file not found")
+    with tempfile.TemporaryDirectory(dir=db_path.parent if db_path.parent.exists() else None) as tmp:
+        candidate = Path(tmp) / "restored.db"
+        with gzip.open(backup_path, "rb") as f_in, open(candidate, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        check = sqlite3.connect(str(candidate))
+        try:
+            if check.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                raise RuntimeError("backup failed the integrity check; nothing was changed")
+            check.execute("SELECT COUNT(*) FROM shops").fetchone()      # must look like our database
+        finally:
+            check.close()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        if db_path.exists():
+            shutil.copy2(db_path, db_path.with_name(db_path.name + ".before-restore"))
+        for suffix in ("-wal", "-shm"):                                   # stale journal files would corrupt it
+            db_path.with_name(db_path.name + suffix).unlink(missing_ok=True)
+        shutil.move(str(candidate), str(db_path))
+    return db_path
+
+
 def seconds_until(hour_utc, now=None):
     now = now or datetime.now(timezone.utc)
     nxt = now.replace(hour=hour_utc, minute=0, second=0, microsecond=0)
@@ -64,7 +89,15 @@ def main(argv=None):
     ap.add_argument("--keep", type=int, default=int(os.environ.get("BACKUP_KEEP", "14")))
     ap.add_argument("--hour-utc", type=int, default=int(os.environ.get("BACKUP_HOUR_UTC", "21")))
     ap.add_argument("--loop", action="store_true")
+    ap.add_argument("--restore", metavar="BACKUP.db.gz", help="restore this backup over --db (stop the app first)")
     args = ap.parse_args(argv)
+    if args.restore:
+        try:
+            print(f"restored {restore(args.restore, args.db)}; previous database kept as .before-restore")
+            return 0
+        except Exception as exc:                 # noqa: BLE001
+            print(f"RESTORE FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
     while True:
         if args.loop:
             time.sleep(seconds_until(args.hour_utc))

@@ -184,3 +184,43 @@ def test_app_creates_missing_database_on_startup(tmp_path, monkeypatch):
     assert c.get("/").status_code == 200 and c.get("/s/nope-shop").status_code == 404
     create_app()                                                     # second start keeps the data
     assert sqlite3.connect(path).execute("SELECT COUNT(*) FROM shops").fetchone()[0] == 0
+
+
+def test_restore_replaces_database_and_keeps_previous(tmp_path, capsys):
+    live = make_db(tmp_path / "live.db")
+    backup = backup_db.backup(tmp_path / "live.db", tmp_path / "bk")
+    g.create_shop(live, "Added Later", "added-later")                  # change made after the backup
+    live.close()
+    assert backup_db.main(["--restore", str(backup), "--db", str(tmp_path / "live.db")]) == 0
+    slugs = [r[0] for r in sqlite3.connect(tmp_path / "live.db").execute("SELECT slug FROM shops")]
+    assert slugs == ["glow-salon"]
+    before = sqlite3.connect(tmp_path / "live.db.before-restore")
+    assert before.execute("SELECT COUNT(*) FROM shops").fetchone()[0] == 2
+    assert "restored" in capsys.readouterr().out
+
+
+def test_restore_refuses_bad_backups_and_changes_nothing(tmp_path, capsys):
+    make_db(tmp_path / "live.db").close()
+    bad = tmp_path / "bad.db.gz"
+    bad.write_bytes(gzip.compress(b"this is not a database"))
+    assert backup_db.main(["--restore", str(bad), "--db", str(tmp_path / "live.db")]) == 1
+    assert backup_db.main(["--restore", str(tmp_path / "missing.db.gz"), "--db", str(tmp_path / "live.db")]) == 1
+    assert sqlite3.connect(tmp_path / "live.db").execute("SELECT COUNT(*) FROM shops").fetchone()[0] == 1
+    assert not (tmp_path / "live.db.before-restore").exists()
+    assert "RESTORE FAILED" in capsys.readouterr().err
+
+
+def test_docs_exist_and_cover_every_env_var():
+    readme = (ROOT / "README.md").read_text()
+    keys = re.findall(r"(?m)^([A-Z][A-Z0-9_]+)=", (ROOT / ".env.example").read_text())
+    assert len(keys) >= 20
+    missing = [k for k in keys if f"`{k}`" not in readme]
+    assert missing == [], f"README env table is missing: {missing}"
+    for needle in ("AI_ENABLED=false", "YOURDOMAIN", "smtpout.secureserver.net", "How Claude and GoDaddy are used"):
+        assert needle in readme
+    ops = (ROOT / "OPERATIONS.md").read_text()
+    for needle in ("11 December 2026", "--force-recreate", "--restore", "never", "Console", "down -v"):
+        assert needle.lower() in ops.lower()
+    demo = (ROOT / "DEMO.md").read_text()
+    for needle in ("0:00", "Read my text", "Confirm and save", "Suggest FAQ", "Approve and add", "I agree to share"):
+        assert needle in demo
