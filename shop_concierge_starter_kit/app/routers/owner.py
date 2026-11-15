@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from .. import answer as engine, repo
+from ..ai import importer
 from ..web import csrf_protect, get_conn, render, require_owner
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_owner)])
@@ -192,3 +193,104 @@ def profile_save(request: Request, name: str = Form(""), address: str = Form("")
     except ValueError as e:
         return _page(request, conn, user, "dash_profile.html", 400, str(e), active="profile")
     return RedirectResponse("/dashboard/profile", status_code=303)
+
+
+# ---- onboarding import: Claude proposes, the owner reviews and confirms ----
+HAND_ENTRY = ("We could not read that automatically right now. Please enter your services, "
+              "hours and FAQs by hand using the pages above. Nothing was changed.")
+
+
+def _import_form(request, conn, user, status=200, error=None, pasted=""):
+    return _page(request, conn, user, "dash_import.html", status, error, pasted=pasted,
+                 active="import", max_chars=importer.MAX_PASTE_CHARS)
+
+
+def _preview(request, conn, user, data, status=200, error=None):
+    days = [(d["weekday"], engine._DAY_NAMES[d["weekday"]], d) for d in data["hours"]]
+    return _page(request, conn, user, "dash_import_preview.html", status, error,
+                 services=data["services"], faqs=data["faqs"], days=days, active="import")
+
+
+@router.get("/import", response_class=HTMLResponse)
+def import_form(request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
+    return _import_form(request, conn, user)
+
+
+@router.post("/import", response_class=HTMLResponse, **POST)
+def import_propose(request: Request, pasted: str = Form(""), user=Depends(require_owner),
+                   conn=Depends(get_conn)):
+    st = request.app.state
+    pasted = pasted.strip()
+    if not pasted:
+        return _import_form(request, conn, user, 400, "Please paste some text first.")
+    if len(pasted) > importer.MAX_PASTE_CHARS:
+        return _import_form(request, conn, user, 400,
+                            f"Please paste at most {importer.MAX_PASTE_CHARS} characters at a time.", pasted)
+    if not st.limits["import"].allow(f"shop:{user['shop_id']}"):
+        return _import_form(request, conn, user, 429, "Too many imports. Please try again in an hour.", pasted)
+    proposal = importer.propose(st.ai, conn, user["shop_id"], pasted) if st.ai.enabled else None
+    if proposal is None:                                   # AI off, API error, bad JSON: never an error page
+        return _import_form(request, conn, user, 200, HAND_ENTRY, pasted)
+    return _preview(request, conn, user, proposal)
+
+
+def _parse_preview(form):
+    """Read the owner's edited preview. Only rows with 'keep' ticked are used."""
+    def count(name):
+        n = form.get(name, "0")
+        return min(int(n), 40) if n.isdigit() else 0
+    services, faqs, hours = [], [], []
+    for i in range(count("svc_n")):
+        if form.get(f"svc_keep_{i}"):
+            services.append({"name": str(form.get(f"svc_name_{i}", "")).strip(),
+                             "price": _int(str(form.get(f"svc_price_{i}", ""))),
+                             "duration": _int(str(form.get(f"svc_dur_{i}", "")))})
+    for i in range(count("faq_n")):
+        if form.get(f"faq_keep_{i}"):
+            faqs.append({"question": str(form.get(f"faq_q_{i}", "")).strip(),
+                         "answer": str(form.get(f"faq_a_{i}", "")).strip(),
+                         "keywords": str(form.get(f"faq_k_{i}", "")).strip()})
+    for d in range(7):
+        if form.get(f"hrs_keep_{d}"):
+            closed = bool(form.get(f"hrs_closed_{d}"))
+            hours.append({"weekday": d, "closed": closed,
+                          "open": None if closed else str(form.get(f"hrs_open_{d}", "")),
+                          "close": None if closed else str(form.get(f"hrs_close_{d}", ""))})
+    return {"services": services, "faqs": faqs, "hours": hours}
+
+
+@router.post("/import/confirm", response_class=HTMLResponse, **POST)
+async def import_confirm(request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
+    """The ONLY place the import writes data, and only after the owner clicked Confirm."""
+    form = await request.form()
+    try:
+        data = _parse_preview(form)
+        done = importer.save_confirmed(conn, user["shop_id"], data["services"], data["hours"], data["faqs"])
+    except ValueError as e:
+        data = _parse_preview_lenient(form)
+        return _preview(request, conn, user, data, 400, str(e) or "Please check the values you entered.")
+    msg = (f"Added {done['services']} services and {done['faqs']} FAQs, updated hours for {done['hours']} days."
+           + (f" Skipped {done['skipped_services']} services and {done['skipped_faqs']} FAQs that already existed."
+              if done["skipped_services"] or done["skipped_faqs"] else ""))
+    return render(request, "message.html", title="Import saved", message=msg,
+                  link=("/dashboard", "Go to dashboard"))
+
+
+def _parse_preview_lenient(form):
+    """Re-show the owner's edits after a validation error (bad numbers are shown as typed)."""
+    out = {"services": [], "faqs": [], "hours": []}
+    for i in range(min(int(form.get("svc_n", "0")) if str(form.get("svc_n", "0")).isdigit() else 0, 40)):
+        if form.get(f"svc_keep_{i}"):
+            digits = lambda v: int(v) if str(v).strip().isdigit() else None
+            out["services"].append({"name": str(form.get(f"svc_name_{i}", "")), "price": digits(form.get(f"svc_price_{i}", "")),
+                                    "duration": digits(form.get(f"svc_dur_{i}", ""))})
+    for i in range(min(int(form.get("faq_n", "0")) if str(form.get("faq_n", "0")).isdigit() else 0, 40)):
+        if form.get(f"faq_keep_{i}"):
+            out["faqs"].append({"question": str(form.get(f"faq_q_{i}", "")), "answer": str(form.get(f"faq_a_{i}", "")),
+                                "keywords": str(form.get(f"faq_k_{i}", ""))})
+    for d in range(7):
+        if form.get(f"hrs_keep_{d}"):
+            closed = bool(form.get(f"hrs_closed_{d}"))
+            out["hours"].append({"weekday": d, "closed": closed, "open": str(form.get(f"hrs_open_{d}", "")),
+                                 "close": str(form.get(f"hrs_close_{d}", ""))})
+    return out

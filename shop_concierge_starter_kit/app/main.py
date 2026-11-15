@@ -39,6 +39,7 @@ def create_app(settings=None):
         "login_email": RateLimiter(5, 900, on), "verify": RateLimiter(20, 3600, on),
         "chat": RateLimiter(30, 60, on), "lead": RateLimiter(5, 3600, on), "contact": RateLimiter(3, 3600, on),
         "ai_ip": RateLimiter(settings.ai_ip_hourly, 3600, on),
+        "import": RateLimiter(5, 3600, on),
     }
     app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 

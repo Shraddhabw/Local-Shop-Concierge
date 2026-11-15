@@ -379,3 +379,18 @@ def ai_calls_today(conn, shop_id):
     row = conn.execute("SELECT calls FROM ai_usage WHERE shop_id = ? AND day = ?",
                        (_sid(shop_id), _today())).fetchone()
     return row["calls"] if row else 0
+
+
+def replace_days_hours(conn, shop_id, days):
+    """days: {weekday: (open, close) or None for closed}. Replaces ONLY those days; validates first."""
+    _sid(shop_id)
+    cleaned = []
+    for day, span in days.items():
+        cleaned.append(_check_hours(_clean_row("hours", dict(
+            weekday=day, open_time=span[0] if span else None,
+            close_time=span[1] if span else None, closed=span is None))))
+    for r in cleaned:
+        conn.execute("DELETE FROM hours WHERE shop_id = ? AND weekday = ?", (shop_id, r["weekday"]))
+        conn.execute("INSERT INTO hours (shop_id, weekday, open_time, close_time, closed) VALUES (?,?,?,?,?)",
+                     (shop_id, r["weekday"], r["open_time"], r["close_time"], r["closed"]))
+    conn.commit()

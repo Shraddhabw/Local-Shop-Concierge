@@ -1,0 +1,12 @@
+{% extends "dash_base.html" %}
+{% block title %}Import{% endblock %}
+{% block content %}
+<h1>Import from text</h1>
+<p>Paste your price list, a short bio or text from your website. We will suggest services, hours and FAQs for you to review. <strong>Nothing is saved until you confirm.</strong></p>
+<form method="post" action="/dashboard/import">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Your text (up to {{ max_chars }} characters)
+    <textarea name="pasted" rows="10" maxlength="{{ max_chars }}" required>{{ pasted }}</textarea></label>
+  <button class="btn" type="submit">Read my text</button>
+</form>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "dash_base.html" %}
+{% block title %}Review import{% endblock %}
+{% block content %}
+<h1>Review before saving</h1>
+<p class="note">Check and edit everything. Untick anything you do not want. Nothing is saved until you press Confirm.</p>
+<form method="post" action="/dashboard/import/confirm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="svc_n" value="{{ services|length }}">
+  <input type="hidden" name="faq_n" value="{{ faqs|length }}">
+  <h2>Services</h2>
+  {% for s in services %}
+  <div class="row">
+    <label class="check"><input type="checkbox" name="svc_keep_{{ loop.index0 }}" value="1" checked> Add</label>
+    <label>Name <input name="svc_name_{{ loop.index0 }}" value="{{ s.name }}" maxlength="120"></label>
+    <label>Price <input name="svc_price_{{ loop.index0 }}" value="{{ s.price if s.price is not none else '' }}" inputmode="numeric"></label>
+    <label>Minutes <input name="svc_dur_{{ loop.index0 }}" value="{{ s.duration if s.duration is not none else '' }}" inputmode="numeric"></label>
+  </div>
+  {% else %}<p class="note">No services found.</p>{% endfor %}
+  <h2>Opening hours</h2>
+  <p class="note">Only the days below will change; other days stay as they are.</p>
+  {% for d, name, h in days %}
+  <div class="row">
+    <label class="check"><input type="checkbox" name="hrs_keep_{{ d }}" value="1" checked> {{ name }}</label>
+    <input type="time" name="hrs_open_{{ d }}" value="{{ h.open or '' }}">
+    <input type="time" name="hrs_close_{{ d }}" value="{{ h.close or '' }}">
+    <label class="check"><input type="checkbox" name="hrs_closed_{{ d }}" value="1"{% if h.closed %} checked{% endif %}> Closed</label>
+  </div>
+  {% else %}<p class="note">No hours found.</p>{% endfor %}
+  <h2>FAQs</h2>
+  {% for f in faqs %}
+  <div class="row">
+    <label class="check"><input type="checkbox" name="faq_keep_{{ loop.index0 }}" value="1" checked> Add</label>
+    <label>Question <input name="faq_q_{{ loop.index0 }}" value="{{ f.question }}" maxlength="300"></label>
+    <label>Answer <textarea name="faq_a_{{ loop.index0 }}" maxlength="1000">{{ f.answer }}</textarea></label>
+    <label>Keywords <input name="faq_k_{{ loop.index0 }}" value="{{ f.keywords }}" maxlength="300"></label>
+  </div>
+  {% else %}<p class="note">No FAQs found.</p>{% endfor %}
+  <button class="btn" type="submit">Confirm and save</button>
+  <a href="/dashboard/import">Cancel</a>
+</form>
+{% endblock %}

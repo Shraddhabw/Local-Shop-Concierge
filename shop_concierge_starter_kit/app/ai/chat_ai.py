@@ -158,9 +158,10 @@ class AIService:
             self._client = anthropic.Anthropic(api_key=self._api_key, max_retries=1, timeout=8.0)
         return self._client
 
-    def _request_params(self):
-        params = {"model": self.settings.claude_model, "max_tokens": MAX_TOKENS,
-                  "system": SYSTEM_PROMPT, "tools": TOOLS, "tool_choice": {"type": "auto"}}
+    def _request_params(self, system=SYSTEM_PROMPT, max_tokens=MAX_TOKENS, tools=TOOLS):
+        params = {"model": self.settings.claude_model, "max_tokens": max_tokens, "system": system}
+        if tools:
+            params["tools"], params["tool_choice"] = tools, {"type": "auto"}
         model = self.settings.claude_model
         if model.startswith("claude-haiku-5"):          # fast, no hidden reasoning tokens
             params["thinking"] = {"type": "disabled"}
@@ -245,5 +246,43 @@ class AIService:
                                  '"needs_human": boolean}. Cite only ids returned by your tools.'})
             return None
         except Exception as exc:                         # noqa: BLE001 - rate limit, billing, timeout...
+            self._fail(conn, shop_id, type(exc).__name__)
+            return None
+
+
+    def json_call(self, conn, shop_id, system, user_text, validate, max_tokens=3000, timeout=30.0):
+        """Tool-less call whose reply must be strict JSON accepted by validate(text) -> obj|None.
+
+        Same gates as chat (kill switch, cooldown, shop and platform caps), one retry on invalid
+        JSON, then None. Any API error: log the type, start the cooldown, return None.
+        Used by onboarding import. The caller shows a "enter it by hand" message on None.
+        """
+        if not self.allowed(conn, shop_id):
+            return None
+        repo.add_ai_usage(conn, shop_id, calls=1)
+        messages = [{"role": "user", "content": user_text}]
+        try:
+            client = self._get_client()
+            for attempt in (1, 2):
+                response = client.messages.create(
+                    messages=messages, timeout=timeout,
+                    **self._request_params(system, max_tokens, tools=None))
+                tin, tout = _usage_tokens(response)
+                repo.add_ai_usage(conn, shop_id, input_tokens=tin, output_tokens=tout)
+                if response.stop_reason in ("refusal", "max_tokens"):
+                    return None
+                text = "".join(b.text for b in response.content if b.type == "text")
+                result = validate(text)
+                if result is not None:
+                    return result
+                if attempt == 2:
+                    log.warning("AI JSON invalid after retry")
+                    return None
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "user", "content":
+                                 "That was not valid. Reply with ONLY the JSON object in the required "
+                                 "format, using only facts from the pasted text."})
+            return None
+        except Exception as exc:                         # noqa: BLE001
             self._fail(conn, shop_id, type(exc).__name__)
             return None
