@@ -3,7 +3,7 @@
 User for every task: a shop owner (builds data) or that shop's customer (asks questions).
 Dates: project submission 20 November 2026. Live demo 11 December 2026, so the deployed app must stay up and affordable until then.
 
-- [ ] T0 Plan. Goal: a one-page PLAN.md with file structure, SQLite schema (shops, users, services, faqs, hours, leads, unanswered_questions, ai_usage), request flows, subdomain routing (slug.BASE_DOMAIN plus /s/{slug}), and a top-8 threat model. Done when: PLAN.md exists. [STOP] Show a 10-line summary and wait for my OK.
+- [x] T0 Plan. Goal: a one-page PLAN.md with file structure, SQLite schema (shops, users, services, faqs, hours, leads, unanswered_questions, ai_usage), request flows, subdomain routing (slug.BASE_DOMAIN plus /s/{slug}), and a top-8 threat model. Done when: PLAN.md exists. [STOP] Show a 10-line summary and wait for my OK.
 
 - [ ] T1 Simple core, no AI. Goal: data layer with shop_id-scoped functions, plus answer(shop_id, message) using keyword scoring over FAQs, services, prices and hours (synonyms, "how much is X", "when open", "where"). Done when: pytest passes, including tests that shop A cannot read/edit/delete shop B's data by guessing IDs.
 
