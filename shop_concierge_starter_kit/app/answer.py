@@ -215,6 +215,27 @@ def answer(shop_id, message, *, conn=None, now=None):
             conn.close()
 
 
+_CONTROL = ({"price", "much", "open", "time", "where", "long", "service", "call", "contact",
+             "number", "whatsapp"} | set(_DAYS) | set(_DAY_GROUPS))
+
+
+def _content_tokens(tokens, shop):
+    """The meaningful words of a question (no filler, no intent or day words)."""
+    ignore = _STOP | _FILLER | set(_tokens(shop["name"]))
+    return [t for t in dict.fromkeys(tokens) if t not in ignore and t not in _CONTROL]
+
+
+def unknown_words(conn, shop, message, extra_text=""):
+    """Meaningful words in the question that appear nowhere in this shop's data (or extra_text).
+
+    Same honesty rule as the keyword engine: such a word means we must not guess an answer.
+    """
+    docs = _build_docs(repo.list_services(conn, shop["id"]), repo.list_faqs(conn, shop["id"]))
+    known = {t for d in docs for t in d["w"]} | set(_tokens(extra_text))
+    content = _content_tokens(_tokens(str(message or "")[:MAX_MESSAGE_CHARS]), shop)
+    return [t for t in content if t not in known]
+
+
 def _answer(conn, shop_id, message, now):
     shop = repo.get_shop(conn, shop_id)
     message = str(message or "").strip()[:MAX_MESSAGE_CHARS]
@@ -255,11 +276,7 @@ def _answer(conn, shop_id, message, now):
     hours = repo.list_hours(conn, shop_id)
     docs = _build_docs(services, faqs)
     vocab = {t for d in docs for t in d["w"]}
-    ignore = _STOP | _FILLER | {t for t in _tokens(shop["name"])}
-    control = {"price", "much", "open", "time", "where", "long", "service", "call", "contact",
-               "number", "whatsapp"} | set(_DAYS) | set(_DAY_GROUPS)
-    content = [t for t in dict.fromkeys(tokens)
-               if t not in ignore and t not in control]
+    content = _content_tokens(tokens, shop)
     if any(t not in vocab for t in content):
         return _not_found(intent)      # a word we know nothing about: never guess
 

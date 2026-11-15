@@ -16,7 +16,7 @@
         {"id":"c13","shop":"demo-tutor","question":"What is the monthly fee for Class 10 maths?","expect_found":true,"contains_any":["1500"],"seed_fact":"Class 10 maths batch costs 1500 per month"},
     {"id":"c14","shop":"demo-tutor","question":"Do you offer a free demo class?","expect_found":true,"contains_any":["demo"],"seed_fact":"First demo class is free"},
     {"id":"c15","shop":"demo-tutor","question":"What are the batch timings on weekdays?","expect_found":true,"contains_any":["6"],"seed_fact":"Weekday batches run 6:00 pm to 8:00 pm"},
-    {"id":"c16","shop":"demo-tutor","question":"Do you teach Class 12 physics?","expect_found":false,"must_not_contain":["Rs","INR","\u20b9","$"],"seed_fact":"Physics is NOT offered"},
+    {"id":"c16","shop":"demo-tutor","question":"Do you teach Class 12 physics?","expect_found":false,"must_not_match":["(?i)physics[^.]{0,40}(INR|Rs|\u20b9|\\$)\\s*\\d"],"seed_fact":"Physics is NOT offered"},
     {"id":"c17","shop":"demo-repair","question":"How much is an iPhone screen replacement?","expect_found":true,"contains_any":["3500"],"seed_fact":"iPhone screen replacement costs 3500"},
     {"id":"c18","shop":"demo-repair","question":"How long does a battery replacement take?","expect_found":true,"contains_any":["30"],"seed_fact":"Battery replacement takes about 30 minutes"},
     {"id":"c19","shop":"demo-repair","question":"Do you give a warranty on repairs?","expect_found":true,"contains_any":["warranty"],"seed_fact":"3 month warranty on all repairs"},

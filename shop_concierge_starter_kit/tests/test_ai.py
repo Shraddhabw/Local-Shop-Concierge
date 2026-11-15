@@ -70,7 +70,7 @@ def svc(env, shop, name):
     return next(s for s in repo.list_services(env, shop["id"]) if s["name"] == name)
 
 
-def run(env, shop, client, monkeypatch, msg="Do you have anything for oily skin?", **over):
+def run(env, shop, client, monkeypatch, msg="How much is a facial and how long does it take?", **over):
     ai = AIService(settings(monkeypatch, **over), client=client)
     return ai, ai.try_answer(env_conn(env), shop, msg)
 
@@ -321,3 +321,81 @@ def test_run_evals_ai_reports_all_cases(monkeypatch, capsys):
     assert code == 0 and "22/22 passed" in out and "(AI path on)" in out and out.count("PASS c") == 22
     monkeypatch.delenv("AI_ENABLED", raising=False)
     assert run_evals.main(["--ai"]) == 2
+
+
+# ---- honesty guard (c20 regression): unknown words in the question force found=false ----
+def test_system_prompt_forbids_inferring_from_similar_services():
+    assert "exact item, device, subject or service" in chat_ai.SYSTEM_PROMPT
+    assert "Never infer from similar services" in chat_ai.SYSTEM_PROMPT
+
+
+def test_unknown_words_helper(env, shops):
+    repair, salon = shops["demo-repair"], shops["demo-salon"]
+    from app import answer as engine
+    assert engine.unknown_words(env, repair, "Can you repair my laptop?") == ["laptop"]
+    assert engine.unknown_words(env, repair, "Can you repair my iPhone screen?") == []
+    assert engine.unknown_words(env, salon, "Do you do tattoos?") == ["tattoo"]
+    assert engine.unknown_words(env, salon, "tattoo", extra_text="we do tattoos") == []
+    assert engine.unknown_words(env, salon, "") == []
+
+
+def test_laptop_generalisation_is_forced_to_not_found(env, shops, monkeypatch):
+    repair = shops["demo-repair"]
+    battery = svc(env, repair, "Battery Replacement")
+    client = FakeClient(
+        tool_use("get_services", {"query": "battery"}),
+        reply("Yes, we repair laptops too. Battery Replacement is \u20b91500.", True, [battery["id"]]))
+    ai, out = run(env, repair, client, monkeypatch, "Can you repair my laptop?")
+    assert out["found"] is False and out["needs_human"] is True and out["source_ids"] == []
+    assert out["answer"] == chat_ai.engine.NOT_FOUND_TEXT and "laptop" not in out["answer"].lower()
+
+
+def test_guard_replaces_model_not_found_text_too(env, shops, monkeypatch):
+    client = FakeClient(reply("We might do physics, call us for a price of 500.", False, [], True))
+    ai, out = run(env, shops["demo-tutor"], client, monkeypatch, "Do you teach Class 12 physics?")
+    assert out["answer"] == chat_ai.engine.NOT_FOUND_TEXT and out["found"] is False
+
+
+def test_guard_keeps_staged_lead_for_customer_confirmation(env, shops, monkeypatch):
+    client = FakeClient(tool_use("propose_lead", {"name": "Ravi", "contact": "9999", "message": "laptop repair"}),
+                        reply("Yes we repair laptops!", False, [], True))
+    ai, out = run(env, shops["demo-repair"], client, monkeypatch, "Can you repair my laptop? I am Ravi 9999")
+    assert out["found"] is False and out["proposed_lead"]["contact"] == "9999"
+    assert repo.list_leads(env, shops["demo-repair"]["id"]) == []
+
+
+def test_guard_does_not_block_questions_made_of_known_words(env, shops, monkeypatch):
+    repair = shops["demo-repair"]
+    screen = svc(env, repair, "iPhone Screen Replacement")
+    client = FakeClient(tool_use("get_services", {"query": "iphone screen"}),
+                        reply("iPhone Screen Replacement costs \u20b93500 and takes about 60 minutes.", True, [screen["id"]]))
+    ai, out = run(env, repair, client, monkeypatch, "iPhone screen replacement price and time please")
+    assert out["found"] is True and "3500" in out["answer"]
+
+
+def test_laptop_question_through_chat_endpoint_gets_not_found_and_lead_offer(env, shops, monkeypatch):
+    c = browser()
+    battery = svc(env, shops["demo-repair"], "Battery Replacement")
+    c.app.state.ai = AIService(settings(monkeypatch), client=FakeClient(
+        reply("Yes, we repair laptops.", True, [battery["id"]])))
+    body = c.post("/api/chat", json={"slug": "demo-repair", "message": "Can you repair my laptop?"}).json()
+    assert body["found"] is False and body["needs_human"] is True and "laptops" not in body["answer"]
+    assert repo.list_unanswered(env, shops["demo-repair"]["id"])[0]["question"] == "Can you repair my laptop?"
+
+
+# ---- eval harness: must_not_match ----
+def test_must_not_match_catches_invented_physics_price_but_allows_other_prices():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "eval"))
+    import json as _json
+    import run_evals
+    case = next(c for c in _json.loads((Path(run_evals.ROOT) / "eval" / "cases.json").read_text())["cases"]
+                if c["id"] == "c16")
+    assert "must_not_contain" not in case and case["expect_found"] is False
+    def verdict(text):
+        return run_evals.check(case, {"answer": text, "found": False})
+    assert verdict("There is no Physics batch. Class 12 Maths Batch costs INR 2000.") == []
+    assert verdict("Physics batch costs \u20b92000 per month.") != []
+    assert verdict("We teach physics for Rs 1500.") != []
+    assert verdict("Physics: INR 1800") != []
+    assert verdict("Physics fee is $50") != []
+    assert verdict("We do not teach physics.") == []

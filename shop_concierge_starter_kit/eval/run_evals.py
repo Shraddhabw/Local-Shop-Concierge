@@ -1,7 +1,8 @@
 """Run eval/cases.json through answer(). Exit 1 on any failure.
 
 Usage: python eval/run_evals.py [--ai] [--db PATH]
-Matching: contains_any is case-insensitive; must_not_contain is case-insensitive, and
+Matching: must_not_match is a list of regexes (re.search) that must NOT match the answer;
+contains_any is case-insensitive; must_not_contain is case-insensitive, and
 alphabetic items match whole words only (so "Rs" does not match "hours").
 """
 import argparse
@@ -33,6 +34,9 @@ def check(case, result):
     for s in case.get("must_not_contain", []):
         if banned(text, s):
             why.append(f"answer contains forbidden {s!r}")
+    for pattern in case.get("must_not_match", []):
+        if re.search(pattern, text):
+            why.append(f"answer matches forbidden pattern {pattern!r}")
     return why
 
 
