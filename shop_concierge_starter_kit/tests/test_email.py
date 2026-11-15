@@ -212,6 +212,7 @@ def test_contact_rate_limit_and_apex_only(tmp_path, monkeypatch, smtp):   # noqa
 def test_send_test_email_script(smtp, monkeypatch, capsys):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
     import send_test_email as script
+    monkeypatch.setattr(script, "load_dotenv", lambda path: None)     # never read the real .env in tests
     assert script.main(["x", "me@example.com"]) == 0
     out = capsys.readouterr().out
     assert PASSWORD not in out and "OK" in out and len(sent(smtp)) == 1

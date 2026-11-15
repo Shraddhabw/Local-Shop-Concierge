@@ -49,3 +49,13 @@ def _never_send_real_email(monkeypatch):
     """Tests must never reach a real SMTP server, even if the developer's shell has SMTP_* set."""
     for name in ("SMTP_PASSWORD", "SMTP_USER", "MAIL_FROM", "CONTACT_RECIPIENT"):
         monkeypatch.delenv(name, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _never_call_real_ai(monkeypatch):
+    """Tests must never reach the real Anthropic API, even if .env or the shell has a key.
+
+    A test that wants AI on builds an AIService with a mocked client (tests/test_ai.py).
+    """
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("AI_ENABLED", "false")

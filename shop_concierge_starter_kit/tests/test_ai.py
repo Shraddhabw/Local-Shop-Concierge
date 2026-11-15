@@ -399,3 +399,8 @@ def test_must_not_match_catches_invented_physics_price_but_allows_other_prices()
     assert verdict("Physics: INR 1800") != []
     assert verdict("Physics fee is $50") != []
     assert verdict("We do not teach physics.") == []
+
+
+def test_tests_are_isolated_from_real_ai_env():
+    import os
+    assert os.environ.get("AI_ENABLED") == "false" and "ANTHROPIC_API_KEY" not in os.environ
