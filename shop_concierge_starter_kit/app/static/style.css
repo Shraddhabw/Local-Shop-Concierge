@@ -24,3 +24,13 @@ textarea{width:100%;box-sizing:border-box;padding:.6rem;font-size:1rem;min-heigh
 .lead-box{background:#fffbe6;border-radius:10px;padding:.6rem;margin-top:.6rem}
 .embed{background:#fff}.embed-title{margin:.5rem}.qr svg{max-width:180px;height:auto}
 .hp{position:absolute;left:-9999px;height:0;overflow:hidden}
+.flash{display:flex;align-items:flex-start;gap:.6rem;padding:.7rem .9rem;border-radius:8px;margin:.8rem 0;border:2px solid;font-weight:600;transition:opacity .4s}
+.flash.ok{background:#e7f6ec;color:#0b3d1f;border-color:#1e7a3c}
+.flash.err{background:#fde8e8;color:#7a1414;border-color:#b42318}
+.flash-icon{font-weight:700;font-size:1.1rem;line-height:1.3}
+.flash-text{flex:1}
+.flash a{color:inherit;text-decoration:underline}
+.flash-close{background:none;border:0;color:inherit;font-size:1.4rem;line-height:1;cursor:pointer;padding:0 .3rem}
+.flash.hide{opacity:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.flash{transition:none}}

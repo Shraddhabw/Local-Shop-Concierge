@@ -252,3 +252,127 @@ def test_chat_and_lead_rate_limits(tmp_path, monkeypatch):
     lead = {"slug": "shop-one", "name": "A", "contact": "1", "consent": True}
     codes = [c.post("/api/lead", json=lead).status_code for _ in range(6)]
     assert codes[:5] == [200] * 5 and codes[5] == 429
+
+
+# ---------------- flash messages ----------------
+def _svc(c, **over):
+    d = {"csrf_token": csrf(c, "/dashboard/services"), "name": "Haircut", "price": "300",
+         "duration_min": "30", "description": "", "keywords": ""}
+    d.update(over)
+    return c.post("/dashboard/services", data=d)
+
+
+def test_flash_shows_once_after_save_then_is_gone(env, owner):
+    c, sid = owner
+    r = _svc(c)
+    assert r.status_code == 303 and r.headers["location"] == "/dashboard/services"
+    page = c.get("/dashboard/services")
+    assert 'role="status"' in page.text and "Service added: Haircut" in page.text
+    assert 'href="/s/glow-salon"' in page.text and "View on your public page" in page.text
+    assert "Service added" not in c.get("/dashboard/services").text      # single use
+    assert "Service added" not in c.get("/dashboard").text
+
+
+def _hours_form(c, **over):
+    d = {"csrf_token": csrf(c, "/dashboard/hours")}
+    for i in range(7):
+        d[f"open_{i}"], d[f"close_{i}"] = "09:00", "18:00"
+    d.update(over)
+    return d
+
+
+def test_flash_covers_every_owner_action(env, owner):
+    c, sid = owner
+    _svc(c)
+    c.get("/dashboard/services")                                   # consume the first banner
+    svc = repo.list_services(env, sid)[0]["id"]
+
+    def check(post, then_get, text):
+        r = post()
+        assert r.status_code == 303, (text, r.status_code)
+        assert text in c.get(then_get).text, text
+        assert text not in c.get(then_get).text, text + " (not single use)"
+
+    svc_form = lambda name: {"csrf_token": csrf(c, "/dashboard/services"), "name": name, "price": "350",
+                             "duration_min": "", "description": "", "keywords": ""}
+    check(lambda: c.post(f"/dashboard/services/{svc}", data=svc_form("Cut")), "/dashboard/services", "Service saved: Cut")
+    check(lambda: c.post("/dashboard/hours", data=_hours_form(c)), "/dashboard/hours", "Hours saved")
+    check(lambda: c.post("/dashboard/faqs", data={"csrf_token": csrf(c, "/dashboard/faqs"), "question": "Parking?",
+                                                  "answer": "Yes", "keywords": ""}), "/dashboard/faqs", "FAQ added: Parking?")
+    faq = repo.list_faqs(env, sid)[0]["id"]
+    check(lambda: c.post(f"/dashboard/faqs/{faq}", data={"csrf_token": csrf(c, "/dashboard/faqs"), "question": "Parking?",
+                                                          "answer": "Free", "keywords": ""}), "/dashboard/faqs", "FAQ saved: Parking?")
+    check(lambda: c.post(f"/dashboard/faqs/{faq}/delete", data={"csrf_token": csrf(c, "/dashboard/faqs")}),
+          "/dashboard/faqs", "FAQ deleted")
+    check(lambda: c.post("/dashboard/profile", data={"csrf_token": csrf(c, "/dashboard/profile"), "name": "Glow",
+                                                     "address": "", "phone": "", "whatsapp": "", "currency": "INR"}),
+          "/dashboard/profile", "Settings saved")
+    lead = repo.add_lead(env, sid, "Asha", "9999999999", "hi")
+    check(lambda: c.post(f"/dashboard/leads/{lead}/delete", data={"csrf_token": csrf(c, "/dashboard/leads")}),
+          "/dashboard/leads", "Lead deleted")
+    check(lambda: c.post(f"/dashboard/services/{svc}/delete", data={"csrf_token": csrf(c, "/dashboard/services")}),
+          "/dashboard/services", "Service deleted: Cut")
+
+
+def test_flash_approve_and_dismiss(env, owner):
+    c, sid = owner
+    qid = repo.log_unanswered(env, sid, "Do you do threading?")
+    qid2 = repo.log_unanswered(env, sid, "Do you do waxing?")
+    r = c.post("/dashboard/faqs", data={"csrf_token": csrf(c, "/dashboard/faqs"), "question": "Do you do threading?",
+                                         "answer": "Saturdays only", "keywords": "", "from_unanswered": str(qid)})
+    assert r.status_code == 303
+    assert "FAQ approved and added" in c.get("/dashboard/faqs").text
+    r = c.post(f"/dashboard/unanswered/{qid2}/dismiss", data={"csrf_token": csrf(c)})
+    assert r.status_code == 303 and "Question dismissed" in c.get("/dashboard").text
+
+
+def test_error_flash_shows_alert_and_keeps_typed_values(env, owner):
+    c, sid = owner
+    r = _svc(c, name="Facial", price="abc", description="Deep clean")
+    assert r.status_code == 400
+    assert 'role="alert"' in r.text and "whole numbers" in r.text
+    assert 'value="Facial"' in r.text and 'value="abc"' in r.text and 'value="Deep clean"' in r.text
+    assert repo.list_services(env, sid) == []                     # nothing saved
+    r = c.post("/dashboard/profile", data={"csrf_token": csrf(c, "/dashboard/profile"), "name": "New Name",
+                                           "address": "", "phone": "", "whatsapp": "", "currency": "rupee"})
+    assert r.status_code == 400 and 'role="alert"' in r.text and 'value="New Name"' in r.text and 'value="rupee"' in r.text
+    r = c.post("/dashboard/hours", data=_hours_form(c, open_0="20:00", close_0="09:00"))
+    assert r.status_code == 400 and 'role="alert"' in r.text and 'value="20:00"' in r.text
+
+
+def test_flash_is_escaped_not_html(env, owner):
+    c, sid = owner
+    evil = "<script>alert(1)</script>"
+    _svc(c, name=evil)
+    page = c.get("/dashboard/services").text
+    assert "Service added: &lt;script&gt;alert(1)&lt;/script&gt;" in page
+    assert "<script>alert(1)</script>" not in page
+
+
+def test_anonymous_never_sees_flash_and_cookie_cannot_be_forged_or_moved(env, owner):
+    c, sid = owner
+    r = _svc(c, name="Haircut")
+    flash_cookie = r.cookies.get("flash") or r.headers["set-cookie"].split("flash=")[1].split(";")[0]
+    anon = browser()
+    anon.cookies.set("flash", flash_cookie, domain="example.com")
+    for path in ("/login", "/", "/s/glow-salon", "/dashboard"):
+        assert "Service added" not in anon.get(path, follow_redirects=False).text
+    # another logged-in owner presenting this cookie does not see it either (bound to the session)
+    make_owner(env, "Other Shop", "other-shop", "b@example.com")
+    other = browser("tok-other-shop")
+    other.cookies.set("flash", flash_cookie, domain="example.com")
+    assert "Service added" not in other.get("/dashboard/services").text
+    # a forged cookie is ignored
+    c2 = browser("tok-glow-salon")
+    c2.cookies.set("flash", "eyJrIjoib2siLCJ0IjoiaGFja2VkIiwicCI6ZmFsc2V9.deadbeef", domain="example.com")
+    assert "hacked" not in c2.get("/dashboard").text
+
+
+def test_flash_static_js_exists_and_banner_works_without_js(env, owner):
+    c, sid = owner
+    js = c.get("/static/flash.js")
+    assert js.status_code == 200 and "prefers-reduced-motion" in js.text
+    _svc(c)
+    page = c.get("/dashboard/services").text
+    assert 'hidden>&times;' in page or "hidden>" in page        # close button only revealed by JS
+    assert "<script>" not in page and '<script src="/static/flash.js" defer>' in page

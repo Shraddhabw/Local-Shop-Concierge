@@ -4,11 +4,11 @@
 <h1>Shop details</h1>
 <form method="post" action="/dashboard/profile" class="row">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <label>Shop name <input name="name" value="{{ shop.name }}" required maxlength="120"></label>
-  <label>Address <input name="address" value="{{ shop.address }}" maxlength="300"></label>
-  <label>Phone <input name="phone" value="{{ shop.phone }}" maxlength="40"></label>
-  <label>WhatsApp number (with country code) <input name="whatsapp" value="{{ shop.whatsapp }}" maxlength="40"></label>
-  <label>Currency code <input name="currency" value="{{ shop.currency }}" maxlength="3" required></label>
+  <label>Shop name <input name="name" value="{{ vals.name if vals and vals.name is defined else shop.name }}" required maxlength="120"></label>
+  <label>Address <input name="address" value="{{ vals.address if vals and vals.address is defined else shop.address }}" maxlength="300"></label>
+  <label>Phone <input name="phone" value="{{ vals.phone if vals and vals.phone is defined else shop.phone }}" maxlength="40"></label>
+  <label>WhatsApp number (with country code) <input name="whatsapp" value="{{ vals.whatsapp if vals and vals.whatsapp is defined else shop.whatsapp }}" maxlength="40"></label>
+  <label>Currency code <input name="currency" value="{{ vals.currency if vals and vals.currency is defined else shop.currency }}" maxlength="3" required></label>
   <button class="btn" type="submit">Save</button>
 </form>
 {% endblock %}

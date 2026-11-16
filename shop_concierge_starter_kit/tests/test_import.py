@@ -160,7 +160,8 @@ def test_confirm_saves_only_what_owner_confirmed(env, owner, monkeypatch):
     data = confirm_data(c, svc_price_0="350")                    # owner edited a price
     del data["svc_keep_1"]                                       # and unticked Facial
     r = c.post("/dashboard/import/confirm", data=data)
-    assert r.status_code == 200 and "Import saved" in r.text
+    assert r.status_code == 303 and r.headers["location"] == "/dashboard"
+    assert "Import saved" in c.get("/dashboard").text            # shown as a flash banner on the next page
     services = repo.list_services(env, sid)
     assert [(s["name"], s["price"], s["duration_min"]) for s in services] == [("Haircut", 350, 30)]
     assert len(repo.list_faqs(env, sid)) == 1
@@ -173,7 +174,7 @@ def test_confirm_skips_existing_and_keeps_other_days(env, owner, monkeypatch):
     repo.add_service(env, sid, "haircut", 111)
     repo.add_hours(env, sid, 2, "10:00", "12:00")
     r = c.post("/dashboard/import/confirm", data=confirm_data(c))
-    assert "Skipped 1 services" in r.text
+    assert r.status_code == 303 and "Skipped 1 services" in c.get("/dashboard").text
     assert [s["price"] for s in repo.list_services(env, sid) if s["name"].lower() == "haircut"] == [111]
     assert {h["weekday"] for h in repo.list_hours(env, sid)} == {0, 2, 6}
 

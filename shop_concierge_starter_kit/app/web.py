@@ -56,3 +56,20 @@ async def csrf_protect(request: Request):
 
 def money(shop, price):
     return engine._money(shop, price)
+
+
+def redirect_with_flash(request, url, text, kind="ok", public=False):
+    """303 redirect that carries one message, shown once on the next owner page."""
+    from fastapi.responses import RedirectResponse
+    response = RedirectResponse(url, status_code=303)
+    st = request.app.state.settings
+    response.set_cookie("flash", security.flash_pack(st.secret_key, request.cookies.get("session", ""),
+                                                     kind, text, public),
+                        max_age=120, **security.COOKIE_OPTS)
+    return response
+
+
+def pop_flash(request):
+    """The pending message for this owner session, or None. The caller must clear the cookie."""
+    st = request.app.state.settings
+    return security.flash_unpack(st.secret_key, request.cookies.get("session", ""), request.cookies.get("flash"))

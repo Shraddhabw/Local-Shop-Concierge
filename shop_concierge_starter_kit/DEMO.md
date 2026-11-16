@@ -26,13 +26,13 @@ We accept UPI and cash. Parking is free.
 
 **0:00 - The owner registers (30 s).** "Meet Asha, she runs a small spa and has no time for the phone." Open `https://YOURDOMAIN`, click *Create your shop*, enter *Sunrise Spa*, an email and a password. "She gets a confirmation email." Click the link in the email, then log in. The dashboard opens with her shop name.
 
-**0:30 - She imports her price list (45 s).** Click *Import*, paste the sample price list, click *Read my text*. "The AI reads it, but it only suggests." Show the preview: services with prices and minutes, hours Monday to Saturday, closed Sunday, an FAQ about UPI. Change one price to show it is editable, then *Confirm and save*. "Nothing was saved until she clicked confirm."
+**0:30 - She imports her price list (45 s).** Click *Import*, paste the sample price list, click *Read my text*. "The AI reads it, but it only suggests." Show the preview: services with prices and minutes, hours Monday to Saturday, closed Sunday, an FAQ about UPI. Change one price to show it is editable, then *Confirm and save*. "Nothing was saved until she clicked confirm." The dashboard then opens with a green banner "Import saved: added ...".
 
 **1:15 - A customer asks a price question (30 s).** Open her public page (`/s/sunrise-spa`) on the phone. Show the QR code and the WhatsApp button briefly. In the chat type *How much is a haircut?* The answer appears at once with the price. "This answer comes straight from her own price list, so it can't be made up."
 
 **1:45 - An unanswered question becomes a lead (45 s).** Type *Do you do eyebrow threading?* The chat says it doesn't know and offers to take details. Fill in a name and phone, tick "I agree to share these details", send. "The customer chose to share this, so only now is Asha alerted." Switch to the inbox: the lead alert email arrives (usually within seconds).
 
-**2:30 - The dashboard shows what happened (20 s).** Back on the dashboard: chats this week, 1 lead, and "Do you do eyebrow threading?" under questions the chat could not answer. Click *Suggest FAQ*, type "Yes, Saturdays only", click *Approve and add*. "Next time, the chat knows."
+**2:30 - The dashboard shows what happened (20 s).** Back on the dashboard: chats this week, 1 lead, and "Do you do eyebrow threading?" under questions the chat could not answer. Click *Suggest FAQ*, type "Yes, Saturdays only", click *Approve and add*. "Next time, the chat knows." A green banner "FAQ approved and added" confirms it.
 
 **2:50 - Her own web address over HTTPS (10 s).** Open `https://sunrise-spa.YOURDOMAIN` (any shop works, e.g. `https://demo-salon.YOURDOMAIN`): same page, padlock, no setup.
 

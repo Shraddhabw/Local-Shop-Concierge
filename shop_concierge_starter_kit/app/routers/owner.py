@@ -1,10 +1,10 @@
 """Owner dashboard. Every query uses shop_id from the logged-in session (require_owner)."""
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 from .. import answer as engine, repo
 from ..ai import importer
-from ..web import csrf_protect, get_conn, render, require_owner
+from ..web import csrf_protect, get_conn, pop_flash, redirect_with_flash, render, require_owner
 
 router = APIRouter(prefix="/dashboard", dependencies=[Depends(require_owner)])
 POST = dict(dependencies=[Depends(csrf_protect)])
@@ -21,17 +21,29 @@ def _int(value):
 
 def _page(request, conn, user, name, status=200, error=None, **ctx):
     shop = repo.get_shop(conn, user["shop_id"])
-    return render(request, name, status, shop=shop, error=error, **ctx)
+    flash = pop_flash(request)                       # single use: cleared below, so a reload shows nothing
+    response = render(request, name, status, shop=shop, error=error, flash=flash, **ctx)
+    if request.cookies.get("flash"):
+        response.delete_cookie("flash", path="/")
+    return response
 
 
-def _services(request, conn, user, status=200, error=None):
+def _services(request, conn, user, status=200, error=None, add=None, edit=None):
+    """add / edit hold what the owner typed so a validation error does not lose it."""
+    rows = [dict(r) for r in repo.list_services(conn, user["shop_id"])]
+    if edit:
+        rows = [{**r, **edit[1]} if r["id"] == edit[0] else r for r in rows]
     return _page(request, conn, user, "dash_services.html", status, error,
-                 services=repo.list_services(conn, user["shop_id"]), active="services")
+                 services=rows, add=add or {}, active="services")
 
 
-def _faqs(request, conn, user, status=200, error=None, draft=None):
+
+def _faqs(request, conn, user, status=200, error=None, draft=None, add=None, edit=None):
+    rows = [dict(r) for r in repo.list_faqs(conn, user["shop_id"])]
+    if edit:
+        rows = [{**r, **edit[1]} if r["id"] == edit[0] else r for r in rows]
     return _page(request, conn, user, "dash_faqs.html", status, error,
-                 faqs=repo.list_faqs(conn, user["shop_id"]), active="faqs", draft=draft)
+                 faqs=rows, active="faqs", draft=draft, add=add or {})
 
 
 @router.get("", response_class=HTMLResponse)
@@ -52,32 +64,35 @@ def services(request: Request, user=Depends(require_owner), conn=Depends(get_con
 def service_add(request: Request, name: str = Form(""), price: str = Form(""),
                 duration_min: str = Form(""), description: str = Form(""), keywords: str = Form(""),
                 user=Depends(require_owner), conn=Depends(get_conn)):
+    typed = dict(name=name, price=price, duration_min=duration_min, description=description, keywords=keywords)
     try:
         repo.add_service(conn, user["shop_id"], name, _int(price), _int(duration_min), description, keywords)
     except ValueError as e:
-        return _services(request, conn, user, 400, str(e))
-    return RedirectResponse("/dashboard/services", status_code=303)
+        return _services(request, conn, user, 400, str(e), add=typed)
+    return redirect_with_flash(request, "/dashboard/services", f"Service added: {name.strip()[:80]}", public=True)
 
 
 @router.post("/services/{service_id}", **POST)
 def service_update(service_id: int, request: Request, name: str = Form(""), price: str = Form(""),
                    duration_min: str = Form(""), description: str = Form(""), keywords: str = Form(""),
                    user=Depends(require_owner), conn=Depends(get_conn)):
+    typed = dict(name=name, price=price, duration_min=duration_min, description=description, keywords=keywords)
     try:
         ok = repo.update_service(conn, user["shop_id"], service_id, name=name, price=_int(price),
                                  duration_min=_int(duration_min), description=description, keywords=keywords)
     except ValueError as e:
-        return _services(request, conn, user, 400, str(e))
+        return _services(request, conn, user, 400, str(e), edit=(service_id, typed))
     if not ok:
         raise HTTPException(404)
-    return RedirectResponse("/dashboard/services", status_code=303)
+    return redirect_with_flash(request, "/dashboard/services", f"Service saved: {name.strip()[:80]}", public=True)
 
 
 @router.post("/services/{service_id}/delete", **POST)
-def service_delete(service_id: int, user=Depends(require_owner), conn=Depends(get_conn)):
+def service_delete(service_id: int, request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
+    old = repo.get_service(conn, user["shop_id"], service_id)
     if not repo.delete_service(conn, user["shop_id"], service_id):
         raise HTTPException(404)
-    return RedirectResponse("/dashboard/services", status_code=303)
+    return redirect_with_flash(request, "/dashboard/services", f"Service deleted: {old['name'][:80]}")
 
 
 # ---- faqs ----
@@ -93,11 +108,14 @@ def faq_add(request: Request, question: str = Form(""), answer: str = Form(""), 
     try:
         faq_id = repo.add_faq(conn, sid, question, answer, keywords)
     except ValueError as e:
-        return _faqs(request, conn, user, 400, str(e), draft={"question": question, "answer": answer,
-                                                              "keywords": keywords, "unanswered_id": from_unanswered})
+        typed = {"question": question, "answer": answer, "keywords": keywords}
+        if from_unanswered.isdigit():
+            return _faqs(request, conn, user, 400, str(e), draft={**typed, "unanswered_id": from_unanswered})
+        return _faqs(request, conn, user, 400, str(e), add=typed)
     if from_unanswered.isdigit():                 # the owner approved the draft: mark it resolved
         repo.resolve_unanswered(conn, sid, int(from_unanswered), faq_id)
-    return RedirectResponse("/dashboard/faqs", status_code=303)
+        return redirect_with_flash(request, "/dashboard/faqs", "FAQ approved and added")
+    return redirect_with_flash(request, "/dashboard/faqs", f"FAQ added: {question.strip()[:80]}")
 
 
 @router.post("/faqs/{faq_id}", **POST)
@@ -106,17 +124,18 @@ def faq_update(faq_id: int, request: Request, question: str = Form(""), answer: 
     try:
         ok = repo.update_faq(conn, user["shop_id"], faq_id, question=question, answer=answer, keywords=keywords)
     except ValueError as e:
-        return _faqs(request, conn, user, 400, str(e))
+        return _faqs(request, conn, user, 400, str(e),
+                     edit=(faq_id, {"question": question, "answer": answer, "keywords": keywords}))
     if not ok:
         raise HTTPException(404)
-    return RedirectResponse("/dashboard/faqs", status_code=303)
+    return redirect_with_flash(request, "/dashboard/faqs", f"FAQ saved: {question.strip()[:80]}")
 
 
 @router.post("/faqs/{faq_id}/delete", **POST)
-def faq_delete(faq_id: int, user=Depends(require_owner), conn=Depends(get_conn)):
+def faq_delete(faq_id: int, request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
     if not repo.delete_faq(conn, user["shop_id"], faq_id):
         raise HTTPException(404)
-    return RedirectResponse("/dashboard/faqs", status_code=303)
+    return redirect_with_flash(request, "/dashboard/faqs", "FAQ deleted")
 
 
 @router.post("/unanswered/{item_id}/suggest", response_class=HTMLResponse, **POST)
@@ -130,15 +149,17 @@ def suggest_faq(item_id: int, request: Request, user=Depends(require_owner), con
 
 
 @router.post("/unanswered/{item_id}/dismiss", **POST)
-def dismiss_unanswered(item_id: int, user=Depends(require_owner), conn=Depends(get_conn)):
+def dismiss_unanswered(item_id: int, request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
     if not repo.delete_unanswered(conn, user["shop_id"], item_id):
         raise HTTPException(404)
-    return RedirectResponse("/dashboard", status_code=303)
+    return redirect_with_flash(request, "/dashboard", "Question dismissed")
 
 
 # ---- hours ----
-def _hours(request, conn, user, status=200, error=None):
+def _hours(request, conn, user, status=200, error=None, typed=None):
     rows = {r["weekday"]: r for r in repo.list_hours(conn, user["shop_id"])}
+    if typed:                                        # redisplay what the owner typed after an error
+        rows = {d: {"open_time": o, "close_time": c, "closed": cl} for d, (o, c, cl) in typed.items()}
     days = [(i, name, rows.get(i)) for i, name in enumerate(engine._DAY_NAMES)]
     return _page(request, conn, user, "dash_hours.html", status, error, days=days, active="hours")
 
@@ -160,8 +181,10 @@ async def hours_save(request: Request, user=Depends(require_owner), conn=Depends
     try:
         repo.replace_week_hours(conn, user["shop_id"], week)
     except ValueError as e:
-        return _hours(request, conn, user, 400, str(e))
-    return RedirectResponse("/dashboard/hours", status_code=303)
+        typed = {d: (str(form.get(f"open_{d}", "")), str(form.get(f"close_{d}", "")), bool(form.get(f"closed_{d}")))
+                 for d in range(7)}
+        return _hours(request, conn, user, 400, str(e), typed=typed)
+    return redirect_with_flash(request, "/dashboard/hours", "Hours saved")
 
 
 # ---- leads and profile ----
@@ -172,15 +195,15 @@ def leads(request: Request, user=Depends(require_owner), conn=Depends(get_conn))
 
 
 @router.post("/leads/{lead_id}/delete", **POST)
-def lead_delete(lead_id: int, user=Depends(require_owner), conn=Depends(get_conn)):
+def lead_delete(lead_id: int, request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
     if not repo.delete_lead(conn, user["shop_id"], lead_id):
         raise HTTPException(404)
-    return RedirectResponse("/dashboard/leads", status_code=303)
+    return redirect_with_flash(request, "/dashboard/leads", "Lead deleted")
 
 
 @router.get("/profile", response_class=HTMLResponse)
 def profile(request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
-    return _page(request, conn, user, "dash_profile.html", active="profile")
+    return _page(request, conn, user, "dash_profile.html", active="profile", vals={})
 
 
 @router.post("/profile", **POST)
@@ -191,8 +214,9 @@ def profile_save(request: Request, name: str = Form(""), address: str = Form("")
         repo.update_shop(conn, user["shop_id"], name=name, address=address, phone=phone,
                          whatsapp=whatsapp, currency=currency.strip().upper())
     except ValueError as e:
-        return _page(request, conn, user, "dash_profile.html", 400, str(e), active="profile")
-    return RedirectResponse("/dashboard/profile", status_code=303)
+        typed = dict(name=name, address=address, phone=phone, whatsapp=whatsapp, currency=currency)
+        return _page(request, conn, user, "dash_profile.html", 400, str(e), active="profile", vals=typed)
+    return redirect_with_flash(request, "/dashboard/profile", "Settings saved")
 
 
 # ---- onboarding import: Claude proposes, the owner reviews and confirms ----
@@ -272,8 +296,7 @@ async def import_confirm(request: Request, user=Depends(require_owner), conn=Dep
     msg = (f"Added {done['services']} services and {done['faqs']} FAQs, updated hours for {done['hours']} days."
            + (f" Skipped {done['skipped_services']} services and {done['skipped_faqs']} FAQs that already existed."
               if done["skipped_services"] or done["skipped_faqs"] else ""))
-    return render(request, "message.html", title="Import saved", message=msg,
-                  link=("/dashboard", "Go to dashboard"))
+    return redirect_with_flash(request, "/dashboard", "Import saved: " + msg[0].lower() + msg[1:], public=True)
 
 
 def _parse_preview_lenient(form):

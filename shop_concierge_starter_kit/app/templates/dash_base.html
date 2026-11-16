@@ -7,6 +7,18 @@
 <a href="{{ href }}"{% if active == key %} class="on"{% endif %}>{{ label }}</a>
 {% endfor %}
 </nav>
-{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if flash and flash.kind == "ok" %}
+<div class="flash ok" role="status" aria-live="polite" data-flash>
+  <span class="flash-icon" aria-hidden="true">&#10003;</span>
+  <span class="flash-text"><span class="sr">Success: </span>{{ flash.text }}{% if flash.public %} <a href="/s/{{ shop.slug }}">View on your public page</a>{% endif %}</span>
+  <button type="button" class="flash-close" aria-label="Close message" hidden>&times;</button>
+</div>
+{% elif flash and flash.kind == "err" %}
+<div class="flash err" role="alert" aria-live="assertive"><span class="flash-icon" aria-hidden="true">&#9888;</span><span class="flash-text"><span class="sr">Error: </span>{{ flash.text }}</span></div>
+{% endif %}
+{% if error %}
+<div class="flash err" role="alert" aria-live="assertive"><span class="flash-icon" aria-hidden="true">&#9888;</span><span class="flash-text"><span class="sr">Error: </span>{{ error }}</span></div>
+{% endif %}
 {% block content %}{% endblock %}
 {% endblock %}
+{% block scripts %}<script src="/static/flash.js" defer></script>{% endblock %}

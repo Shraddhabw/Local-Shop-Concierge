@@ -29,9 +29,9 @@
 <h2>Add a question</h2>
 <form method="post" action="/dashboard/faqs" class="row">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <label>Question <input name="question" required maxlength="300"></label>
-  <label>Answer <textarea name="answer" required maxlength="1000"></textarea></label>
-  <label>Keywords <input name="keywords" maxlength="300"></label>
+  <label>Question <input name="question" value="{{ add.question or '' }}" required maxlength="300"></label>
+  <label>Answer <textarea name="answer" required maxlength="1000">{{ add.answer or '' }}</textarea></label>
+  <label>Keywords <input name="keywords" value="{{ add.keywords or '' }}" maxlength="300"></label>
   <button class="btn" type="submit">Add</button>
 </form>
 {% endblock %}

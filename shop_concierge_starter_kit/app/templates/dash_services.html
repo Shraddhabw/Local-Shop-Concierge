@@ -18,11 +18,11 @@
 <h2>Add a service</h2>
 <form method="post" action="/dashboard/services" class="row">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <label>Name <input name="name" required maxlength="120"></label>
-  <label>Price <input name="price" inputmode="numeric"></label>
-  <label>Minutes <input name="duration_min" inputmode="numeric"></label>
-  <label>Description <input name="description" maxlength="500"></label>
-  <label>Keywords <input name="keywords" maxlength="300"></label>
+  <label>Name <input name="name" value="{{ add.name or '' }}" required maxlength="120"></label>
+  <label>Price <input name="price" value="{{ add.price or '' }}" inputmode="numeric"></label>
+  <label>Minutes <input name="duration_min" value="{{ add.duration_min or '' }}" inputmode="numeric"></label>
+  <label>Description <input name="description" value="{{ add.description or '' }}" maxlength="500"></label>
+  <label>Keywords <input name="keywords" value="{{ add.keywords or '' }}" maxlength="300"></label>
   <button class="btn" type="submit">Add</button>
 </form>
 {% endblock %}
