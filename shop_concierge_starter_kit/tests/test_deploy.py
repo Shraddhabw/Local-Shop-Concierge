@@ -115,8 +115,18 @@ def test_caddyfile_security_and_routing():
     assert cf.index("respond @internal 404") < cf.index("reverse_proxy")        # internal blocked first
     assert "path /internal /internal/*" in cf
     assert "header_up X-Forwarded-For {remote_host}" in cf
-    for h in ("Strict-Transport-Security", "X-Content-Type-Options", "X-Frame-Options", "frame-ancestors 'none'"):
+    for h in ("Strict-Transport-Security", "X-Content-Type-Options", "Referrer-Policy", "defer"):
         assert h in cf
+    # X-Frame-Options and the CSP belong to the app: Caddy must not override the embeddable chat page
+    code = "\n".join(l for l in cf.splitlines() if not l.strip().startswith("#"))
+    assert "X-Frame-Options" not in code and "Content-Security-Policy" not in code
+    # Caddy 2.11 rejects the "?" default modifier inside reverse_proxy header_down (crash loop on the server)
+    assert not re.search(r"(?m)^\s*header_(up|down)\s+\?", cf)
+
+
+def test_backup_service_has_no_web_healthcheck():
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text())
+    assert compose["services"]["backup"]["healthcheck"] == {"disable": True}
 
 
 def test_no_secrets_in_deployment_files():

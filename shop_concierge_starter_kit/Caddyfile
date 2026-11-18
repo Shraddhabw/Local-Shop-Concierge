@@ -8,6 +8,16 @@
 
 (common) {
 	encode zstd gzip
+	# Only headers whose value is identical to the app's own (see SECURITY_HEADERS in app/main.py).
+	# `defer` makes Caddy's value replace the app's, so each appears once. X-Frame-Options and the CSP
+	# are NOT set here: the app sets them, and the chat embed page must be allowed to differ.
+	# (The `?` default modifier is rejected by Caddy 2.11 in the proxy block's header_down: crash loop.)
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		defer
+	}
 	request_body {
 		max_size 256KB
 	}
@@ -18,12 +28,6 @@
 	reverse_proxy app:8000 {
 		# Replace anything the client sent: the app trusts only this value, from this container.
 		header_up X-Forwarded-For {remote_host}
-		# Defaults only (?): the app sets stricter values itself, e.g. the widget page allows framing.
-		header_down ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		header_down ?X-Content-Type-Options "nosniff"
-		header_down ?X-Frame-Options "DENY"
-		header_down ?Referrer-Policy "strict-origin-when-cross-origin"
-		header_down ?Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'"
 		header_down -Server
 	}
 }

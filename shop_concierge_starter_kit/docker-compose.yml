@@ -56,6 +56,8 @@ services:
     build: .
     restart: unless-stopped
     command: ["python", "scripts/backup_db.py", "--loop"]
+    healthcheck:
+      disable: true             # the image's web healthcheck does not apply: this container runs no web server
     environment:
       DATABASE_PATH: /data/shop_concierge.db
       BACKUP_DIR: /backups
