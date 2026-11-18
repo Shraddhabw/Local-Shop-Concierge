@@ -219,7 +219,7 @@ def test_send_test_email_script(smtp, monkeypatch, capsys):
     smtp.fail_with = [smtplib.SMTPAuthenticationError(535, b"nope")]
     assert script.main(["x", "me@example.com"]) == 1
     out = capsys.readouterr().out
-    assert "Troubleshooting checklist" in out and "smtpout.secureserver.net" in out and PASSWORD not in out
+    assert "Troubleshooting checklist" in out and "smtp.office365.com" in out and PASSWORD not in out
     assert script.main(["x", "bad\naddress"]) == 2
     monkeypatch.delenv("SMTP_PASSWORD")
     assert script.main(["x", "me@example.com"]) == 2

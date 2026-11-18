@@ -1,13 +1,13 @@
 # Demo script (3 minutes)
 
-Replace `YOURDOMAIN` with the real domain. Run the "before you start" checklist first. Speak in the owner's and customer's words, not in technical terms.
+The live domain is `shopconcierge.online`. Run the "before you start" checklist first. Speak in the owner's and customer's words, not in technical terms.
 
 ## Before you start (5 minutes, not part of the 3)
 
-- [ ] `https://YOURDOMAIN/healthz` shows `ok`; the padlock is present.
-- [ ] Demo shops exist: `https://YOURDOMAIN/s/demo-salon` loads (if not: `docker compose exec app python scripts/seed.py --db /data/shop_concierge.db`).
+- [ ] `https://shopconcierge.online/healthz` shows `ok`; the padlock is present.
+- [ ] Demo shops exist: `https://shopconcierge.online/s/demo-salon` loads (if not: `docker compose exec app python scripts/seed.py --db /data/shop_concierge.db`).
 - [ ] `AI_ENABLED=true` on the server and the import works once (or decide to skip step 2, see Fallbacks).
-- [ ] A throwaway email address you can open during the demo; the Titan mailbox is working (`scripts/send_test_email.py`).
+- [ ] A throwaway email address you can open during the demo; the Microsoft 365 mailbox is working (`scripts/send_test_email.py`).
 - [ ] The owner's email inbox (where the lead alert will arrive) open in another tab. Phone ready with the page open, or a second browser window sized like a phone.
 - [ ] Copy the sample price list below into a text file ready to paste.
 
@@ -24,7 +24,7 @@ We accept UPI and cash. Parking is free.
 
 ## The 3 minutes
 
-**0:00 - The owner registers (30 s).** "Meet Asha, she runs a small spa and has no time for the phone." Open `https://YOURDOMAIN`, click *Create your shop*, enter *Sunrise Spa*, an email and a password. "She gets a confirmation email." Click the link in the email, then log in. The dashboard opens with her shop name.
+**0:00 - The owner registers (30 s).** "Meet Asha, she runs a small spa and has no time for the phone." Open `https://shopconcierge.online`, click *Create your shop*, enter *Sunrise Spa*, an email and a password. "She gets a confirmation email." Click the link in the email, then log in. The dashboard opens with her shop name.
 
 **0:30 - She imports her price list (45 s).** Click *Import*, paste the sample price list, click *Read my text*. "The AI reads it, but it only suggests." Show the preview: services with prices and minutes, hours Monday to Saturday, closed Sunday, an FAQ about UPI. Change one price to show it is editable, then *Confirm and save*. "Nothing was saved until she clicked confirm." The dashboard then opens with a green banner "Import saved: added ...".
 
@@ -34,7 +34,7 @@ We accept UPI and cash. Parking is free.
 
 **2:30 - The dashboard shows what happened (20 s).** Back on the dashboard: chats this week, 1 lead, and "Do you do eyebrow threading?" under questions the chat could not answer. Click *Suggest FAQ*, type "Yes, Saturdays only", click *Approve and add*. "Next time, the chat knows." A green banner "FAQ approved and added" confirms it.
 
-**2:50 - Her own web address over HTTPS (10 s).** Open `https://sunrise-spa.YOURDOMAIN` (any shop works, e.g. `https://demo-salon.YOURDOMAIN`): same page, padlock, no setup.
+**2:50 - Her own web address over HTTPS (10 s).** Open `https://sunrise-spa.shopconcierge.online` (any shop works, e.g. `https://demo-salon.shopconcierge.online`): same page, padlock, no setup.
 
 **Closing line:** "Every question a busy owner can't answer in the moment is answered correctly, or turned into a customer who left their number, and the shop never promises something it doesn't offer."
 

@@ -125,7 +125,7 @@ def test_no_secrets_in_deployment_files():
         assert not re.search(r"sk-ant-[A-Za-z0-9_-]{8,}", text), name
         assert not re.search(r"(?im)^[ \t]*(SECRET_KEY|SMTP_PASSWORD|ANTHROPIC_API_KEY)[ \t]*[:=][ \t]*\S+", text.replace(
             "SECRET_KEY=change-me-long-random", "")), name
-    assert "SMTP_HOST=smtpout.secureserver.net" in (ROOT / ".env.example").read_text()
+    assert "SMTP_HOST=smtp.office365.com" in (ROOT / ".env.example").read_text()
 
 
 # ---------------- backups ----------------
@@ -216,7 +216,7 @@ def test_docs_exist_and_cover_every_env_var():
     assert len(keys) >= 20
     missing = [k for k in keys if f"`{k}`" not in readme]
     assert missing == [], f"README env table is missing: {missing}"
-    for needle in ("AI_ENABLED=false", "YOURDOMAIN", "smtpout.secureserver.net", "How Claude and GoDaddy are used"):
+    for needle in ("AI_ENABLED=false", "shopconcierge.online", "smtp.office365.com", "How Claude and GoDaddy are used"):
         assert needle in readme
     ops = (ROOT / "OPERATIONS.md").read_text()
     for needle in ("11 December 2026", "--force-recreate", "--restore", "never", "Console", "down -v"):

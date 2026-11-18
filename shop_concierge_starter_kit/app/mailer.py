@@ -1,6 +1,6 @@
-"""Email via a GoDaddy Titan mailbox (SMTP). Configured only from environment variables.
+"""Email via a Microsoft 365 mailbox (SMTP). Configured only from environment variables.
 
-SMTP_HOST (smtpout.secureserver.net), SMTP_PORT (465 = SSL, 587 = STARTTLS), SMTP_USER (full
+SMTP_HOST (smtp.office365.com), SMTP_PORT (587 = STARTTLS, 465 = SSL), SMTP_USER (full
 address), SMTP_PASSWORD, MAIL_FROM. If SMTP_PASSWORD is empty the mailer is in "memory mode":
 messages are kept in OUTBOX (development and tests) and nothing is sent.
 

@@ -13,16 +13,16 @@ sys.path.insert(0, str(ROOT))
 
 CHECKLIST = """
 Troubleshooting checklist
-  1. SMTP_HOST must be smtpout.secureserver.net (NOT smtp.titan.email) for GoDaddy Titan.
-  2. SMTP_PORT: 465 (SSL) or 587 (STARTTLS). Try the other one if one is blocked.
-  3. SMTP_USER must be the FULL mailbox address (hello@yourdomain.com), not just "hello".
+  1. SMTP_HOST must be smtp.office365.com for Microsoft 365.
+  2. SMTP_PORT must be 587 (STARTTLS) for Microsoft 365.
+  3. SMTP_USER must be the FULL mailbox address (info@shopconcierge.online), not just "hello".
   4. SMTP_PASSWORD is the mailbox password. If it has special characters keep it in .env without quotes issues.
-  5. MAIL_FROM should be the same address as SMTP_USER (Titan rejects other senders).
-  6. Log in to the Titan webmail with the same password to prove the mailbox works.
+  5. MAIL_FROM should be the same address as SMTP_USER (Microsoft 365 rejects other senders).
+  6. Sign in to Outlook on the web (outlook.office.com) with the same password to prove the mailbox works. Authenticated SMTP must be enabled for the mailbox in the Microsoft 365 admin center.
   7. The mailbox and domain must be active (not expired) in your GoDaddy account.
   8. Your server/VPS must allow outbound traffic on port 465 / 587 (some hosts block it).
-  9. Check the domain's MX/SPF/DKIM records were NOT changed after buying Titan.
- 10. Timeouts mean the port is blocked; "authentication failed" means user or password is wrong.
+  9. Check the domain's Microsoft 365 MX/SPF/DKIM/DMARC records were NOT changed or removed.
+ 10. Timeouts mean the port is blocked; "authentication failed" means user or password is wrong, or Microsoft has disabled password SMTP sign-in for the tenant.
 """
 
 

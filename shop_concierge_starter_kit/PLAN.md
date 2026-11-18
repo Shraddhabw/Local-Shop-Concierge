@@ -13,7 +13,7 @@ app/
   answer.py        keyword engine: answer(shop_id, message) -> {answer, found, source_ids}
   auth.py          argon2, sessions, CSRF, email verify, rate limits
   ratelimit.py     in-memory + db-backed limiter
-  mailer.py        Titan SMTP, background send, retry
+  mailer.py        SMTP (Microsoft 365), background send, retry
   ai/              chat_ai.py (tools, JSON schema, cooldown, caps), importer.py
   routers/         public.py, owner.py, chat.py, auth_routes.py, contact.py, health.py
   templates/ static/   Jinja, widget.js, css

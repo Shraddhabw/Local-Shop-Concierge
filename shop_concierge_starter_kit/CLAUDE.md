@@ -11,7 +11,7 @@ Primary user: a busy shop owner with no technical skills. Secondary user: that s
 - Multi-tenant: every query is scoped by shop_id; data functions REQUIRE shop_id. The shop_id for any AI tool call comes from the request context, never from model output.
 - The app works fully with AI_ENABLED=false. With AI_ENABLED=true, Claude (model from CLAUDE_MODEL, key from ANTHROPIC_API_KEY) is used in two places only: grounded fallback answers (with tools) and onboarding import.
 - Security: argon2, HttpOnly+Secure+SameSite cookies, CSRF, rate limits, validation, output escaping, security headers.
-- Email: GoDaddy Titan mailbox. SMTP_HOST=smtpout.secureserver.net (not smtp.titan.email), SMTP_USER = full address.
+- Email: Microsoft 365 Email Essentials mailbox (bought via GoDaddy). SMTP_HOST=smtp.office365.com, SMTP_PORT=587 (STARTTLS), SMTP_USER = full address, MAIL_FROM = same address.
 
 ## Six habits (how you must work)
 1. Start simple: finish and test the non-AI path first. Add AI only after evals pass without it.

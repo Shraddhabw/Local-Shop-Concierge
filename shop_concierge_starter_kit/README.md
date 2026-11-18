@@ -2,7 +2,7 @@
 
 A small multi-tenant web app for local shops (salons, tutors, repair shops, clinics). A shop owner enters services, prices, hours and FAQs once and gets a public page, an embeddable chat widget, lead capture with email alerts, and a report of the questions customers asked that the chat could not answer.
 
-Live demo: `https://YOURDOMAIN` (placeholder: replace once the site is deployed). Demo shop: `https://YOURDOMAIN/s/demo-salon`.
+Live demo: `https://shopconcierge.online` (live once the T10 deployment is done). Demo shop: `https://shopconcierge.online/s/demo-salon`.
 
 ## The problem
 
@@ -20,7 +20,7 @@ A shop owner is busy with customers and cannot answer "how much is X?", "are you
 ```
  Customer phone / website visitor            Shop owner (apex domain only)
         |                                              |
-        |  /s/{slug}, slug.YOURDOMAIN, widget.js       |  register, verify email, log in
+        |  /s/{slug}, slug.shopconcierge.online, widget.js       |  register, verify email, log in
         v                                              v
  +--------------------------- Caddy (HTTPS, on-demand certificates) ----------------------------+
  |  asks the app "/internal/tls-ask" before issuing a certificate for a shop subdomain          |
@@ -36,7 +36,7 @@ A shop owner is busy with customers and cannot answer "how much is X?", "are you
                                        |   - fallback answers WITH tools
                                        |   - onboarding import
                                        v
-                              Titan mailbox (SMTP) -> lead alerts, contact form, verification
+                              Microsoft 365 mailbox (SMTP) -> lead alerts, contact form, verification
 ```
 
 Chat flow: the keyword engine answers from the shop's services, prices, hours and FAQs. If it is not confident and AI is on and the limits allow, Claude answers by calling read-only tools (`get_services`, `get_hours`, `search_faqs`, `propose_lead`) that read the database for that shop. If it still cannot answer, the question is logged for the owner and the customer is offered a lead form. A lead is saved, and the owner emailed, only after the customer ticks the consent box.
@@ -44,7 +44,7 @@ Chat flow: the keyword engine answers from the shop's services, prices, hours an
 ## Features
 
 - Owner dashboard: services, hours, FAQs, leads, shop details, analytics card (chats and leads this week, top unanswered questions with "Suggest FAQ" drafts the owner must approve), import from pasted text.
-- Public page with services, hours, QR code and WhatsApp button; `slug.YOURDOMAIN` serves the same page; embeddable chat via `<script src="https://YOURDOMAIN/widget.js?shop=your-slug" defer></script>`.
+- Public page with services, hours, QR code and WhatsApp button; `slug.shopconcierge.online` serves the same page; embeddable chat via `<script src="https://shopconcierge.online/widget.js?shop=your-slug" defer></script>`.
 - Platform contact form with honeypot and rate limit.
 - Works fully with `AI_ENABLED=false`.
 
@@ -60,7 +60,7 @@ Argon2 password hashing; HttpOnly + Secure + SameSite host-only cookies; CSRF to
 
 Claude never sends email, edits shop data or writes to the database by itself. If the API fails for any reason (rate limit, billing, timeout), customers silently get keyword answers plus lead capture, and the app pauses AI calls for 5 minutes.
 
-**GoDaddy** provides the domain (and DNS, with a wildcard record so shop subdomains work), the Ubuntu VPS that runs the Docker stack, and the Titan mailbox used for sending (`smtpout.secureserver.net`, port 465 or 587, user = the full mailbox address).
+**GoDaddy** provides the domain (and DNS, with a wildcard record so shop subdomains work), the Ubuntu VPS that runs the Docker stack, and the domain registration. Email is a **Microsoft 365 Email Essentials** mailbox (bought through GoDaddy) used for sending: `smtp.office365.com`, port 587 (STARTTLS), user = the full mailbox address, e.g. `info@shopconcierge.online`. Authenticated SMTP must be enabled for that mailbox in the Microsoft 365 admin center, and Microsoft is phasing out password sign-in for SMTP, so if login fails with correct settings see OPERATIONS.md.
 
 ### Switching AI off
 
@@ -103,14 +103,14 @@ Set in `.env` (never committed; `.env.example` lists them all). Compose reads `.
 | Variable | Meaning | Default |
 |---|---|---|
 | `SECRET_KEY` | Signs CSRF tokens. 32+ random characters; the app refuses to start without it. | none |
-| `BASE_DOMAIN` | Apex domain, e.g. `yourdomain.com`. Owner pages only work here (and `www`). | `example.com` |
+| `BASE_DOMAIN` | Apex domain, e.g. `shopconcierge.online`. Owner pages only work here (and `www`). | `example.com` |
 | `BASE_URL` | Public URL used in emails and the QR code. | `https://BASE_DOMAIN` |
 | `ACME_EMAIL` | Contact address for Caddy / Let's Encrypt (required by Docker Compose). | none |
 | `DATABASE_PATH` | SQLite file. Docker sets `/data/shop_concierge.db`. | `data/shop_concierge.db` |
 | `TRUSTED_PROXIES` | Networks allowed to set `X-Forwarded-For` and call the TLS ask endpoint. Docker sets the Caddy network. | empty (nothing trusted) |
-| `SMTP_HOST` / `SMTP_PORT` | Titan: `smtpout.secureserver.net`, `465` (SSL) or `587` (STARTTLS). | `smtpout.secureserver.net` / `465` |
+| `SMTP_HOST` / `SMTP_PORT` | Microsoft 365: `smtp.office365.com`, `587` (STARTTLS). The built-in defaults are `smtpout.secureserver.net` / `465`, so always set both. | `smtpout.secureserver.net` / `465` |
 | `SMTP_USER` / `SMTP_PASSWORD` | Full mailbox address and its password. Empty password = emails are not sent. | empty |
-| `MAIL_FROM` | Sender address (same as `SMTP_USER` for Titan). | `SMTP_USER` |
+| `MAIL_FROM` | Sender address (must be the same as `SMTP_USER` for Microsoft 365). | `SMTP_USER` |
 | `CONTACT_RECIPIENT` | Where the platform contact form is sent. | empty |
 | `AI_ENABLED` | Kill switch for every Claude call. | `false` |
 | `ANTHROPIC_API_KEY` | Claude key (server gets its own key with a low spend limit). | empty |

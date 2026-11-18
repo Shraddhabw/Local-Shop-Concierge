@@ -5,13 +5,13 @@ Run these on the VPS in `/opt/shopconcierge` unless noted. Nothing here needs sp
 ## Key dates
 
 - Project submission: 20 November 2026. Live demo: 11 December 2026.
-- The **VPS, domain and Titan mailbox must all be paid past 11 December 2026.** Check the end dates in the GoDaddy account now and again each week. If any ends before then, renew it.
+- The **VPS, domain and Microsoft 365 mailbox must all be paid past 11 December 2026.** Check the end dates in the GoDaddy account now and again each week. If any ends before then, renew it.
 - Certificates renew themselves (Caddy). Keep the `caddy_data` volume: never run `docker compose down -v`.
 
 ## Weekly checks (10 minutes)
 
 1. `docker compose ps`: `app` and `caddy` show `healthy`, `backup` is `Up`.
-2. `DOMAIN=yourdomain.com ./scripts/check_live.sh` (run it on your laptop): all PASS.
+2. `DOMAIN=shopconcierge.online ./scripts/check_live.sh` (run it on your laptop): all PASS.
 3. `df -h /` and `docker system df`: disk not above 80% full.
 4. `docker compose logs --tail 100 app`: no repeating errors. (Request URLs are intentionally not logged.)
 5. Backups: `docker compose run --rm --no-deps backup ls -lh /backups`: there is one file per night, newest from last night. Copy one off the server to your laptop: `docker compose cp backup:/backups ./backups-copy` (a backup on the same server does not protect you if the server is lost).
@@ -67,7 +67,7 @@ The old database is kept next to the new one as `shop_concierge.db.before-restor
 |---|---|
 | Site not loading | `docker compose ps`; if `caddy` is down, `docker compose logs caddy`; `docker compose up -d`. Check ports 80 and 443 are open (`sudo ufw status`). |
 | Browser certificate warning on a shop subdomain | Wait 10-20 seconds and reload (first visit issues the certificate). Check the wildcard DNS record `*` points to the VPS. Unknown subdomains are refused on purpose. |
-| Emails not arriving | `send_test_email.py` (above) prints a checklist. Common causes: wrong `SMTP_USER` (must be the full address), `SMTP_HOST` must be `smtpout.secureserver.net`, expired mailbox. |
+| Emails not arriving | `send_test_email.py` (above) prints a checklist. Common causes: wrong `SMTP_USER` (must be the full address), `SMTP_HOST` must be `smtp.office365.com` with `SMTP_PORT=587`, `MAIL_FROM` must equal `SMTP_USER`, Authenticated SMTP must be enabled for the mailbox (Microsoft 365 admin center, Users, Active users, the mailbox, Mail, Manage email apps), an expired subscription. If everything is correct and login is still refused, Microsoft may have switched off password (basic) SMTP sign-in for your tenant; the mailer does not support OAuth, so tell the developer. |
 | Chat answers but never uses AI | `AI_ENABLED` is false, the key is empty, a daily cap was reached, or the 5-minute pause is active. `docker compose logs --tail 50 app` shows a line "AI call failed (ErrorName)" for API errors. This is safe: customers still get keyword answers. |
 | "Too many attempts" messages | Rate limits working. They reset after the window, or after `docker compose restart app`. |
 | Disk filling up | Remove old logs: `docker system prune` (never with `--volumes`). Backups are capped at 14 files. |
