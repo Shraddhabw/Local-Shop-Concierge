@@ -29,7 +29,8 @@ def _shop_page(request, conn, slug):
 def home(request: Request, conn=Depends(get_conn)):
     if request.state.kind == "shop":              # slug.BASE_DOMAIN serves that shop's page
         return _shop_page(request, conn, request.state.shop_slug)
-    return render(request, "landing.html")
+    logged_in = g.get_session_user(conn, request.cookies.get("session")) is not None
+    return render(request, "landing.html", logged_in=logged_in)
 
 
 @router.get("/s/{slug}", response_class=HTMLResponse)

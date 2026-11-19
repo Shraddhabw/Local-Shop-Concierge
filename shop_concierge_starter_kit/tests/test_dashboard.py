@@ -471,3 +471,38 @@ def test_embed_snippet_uses_base_url_and_own_slug_and_is_escaped(env, monkeypatc
     monkeypatch.setenv("BASE_URL", 'https://x.test/"><b>x</b>&a=1')
     page = browser("tok-glow-salon").get("/dashboard").text
     assert "<b>x</b>" not in page and "&lt;b&gt;x&lt;/b&gt;" in page.split('id="embed-snippet"', 1)[1]
+
+
+# ---------------- public pages: header, login button, home links ----------------
+def _header(html):
+    return html.split('<header class="site-head">', 1)[1].split("</header>", 1)[0]
+
+
+def test_landing_has_one_header_contact_link_and_no_duplicates(env):
+    page = browser().get("/").text
+    head, body = _header(page), page.split("</header>", 1)[1]
+    assert head.count(">Contact us<") == 1
+    main = body.split("<main", 1)[1].split("</main>", 1)[0]
+    assert "Contact us" not in main                                  # nothing in the hero/body
+    assert body.split("</main>", 1)[1].count(">Contact us<") == 1    # exactly one more, in the footer
+    assert "Contact us</a> <a" not in page and "Contact us</a><a" not in page   # never two links side by side
+    assert "Create your shop" in main and 'href="/register"' in main  # primary call to action stays
+
+
+def test_landing_login_button_and_dashboard_for_logged_in(env):
+    page = browser().get("/").text
+    head = _header(page)
+    assert 'class="btn-login" href="/login">Log in</a>' in head and "Go to dashboard" not in page
+    make_owner(env, "Glow Salon", "glow-salon", "a@example.com")
+    page = browser("tok-glow-salon").get("/").text
+    assert 'class="btn-login" href="/dashboard">Go to dashboard</a>' in _header(page)
+    assert ">Log in<" not in page
+    # a made-up or expired session counts as logged out
+    assert ">Log in<" in browser("not-a-real-session").get("/").text
+
+
+def test_contact_login_and_register_link_back_home_without_javascript(env):
+    for path in ("/contact", "/login", "/register"):
+        page = browser().get(path).text
+        assert '<p class="home-link"><a href="/">' in page and "Back to home" in page, path
+        assert page.index("home-link") < page.index("<h1>"), path        # at the top of the page
