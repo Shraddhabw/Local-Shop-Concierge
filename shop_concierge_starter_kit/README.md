@@ -5,9 +5,7 @@
 - **Live site:** https://shopconcierge.online
 - **Demo shops:** [demo-salon](https://demo-salon.shopconcierge.online), [demo-tutor](https://demo-tutor.shopconcierge.online) and [demo-repair](https://demo-repair.shopconcierge.online) (the same pages are also at `https://shopconcierge.online/s/demo-salon`, `/s/demo-tutor` and `/s/demo-repair`)
 - **Contact form:** https://shopconcierge.online/contact
-- **Test owner login for judges:** `[add a throwaway test account here: email and password, not a real one]`
 
-## Try it in two minutes
 
 The Claude features (import and fallback chat answers) are switched on for the live site during evaluation, with the limits described under "How Claude and GoDaddy are used". If they are ever off, the app still works with keyword answers and the import page asks for details by hand.
 
