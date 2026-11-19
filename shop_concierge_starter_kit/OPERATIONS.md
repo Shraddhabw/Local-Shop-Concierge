@@ -61,6 +61,33 @@ docker compose up -d
 
 The old database is kept next to the new one as `shop_concierge.db.before-restore` in the `app_data` volume. If the restore message says the integrity check failed, nothing was changed; try the next older backup. To restore from a copy on your laptop, copy it into the volume first: `docker compose cp ./file.db.gz backup:/backups/` (the container must be running), then use the commands above.
 
+## Email deliverability (verified 2026-11-18, facts supplied by the owner)
+
+**What the mailbox is.** `shraddhawagh@shopconcierge.online` is a **GoDaddy Microsoft 365 Email Essentials** mailbox (1-month term), not Titan. Because the term is only one month, check its end date every week: it must run past 11 December 2026. The app sends through it with `SMTP_HOST=smtp.office365.com`, `SMTP_PORT=587` (STARTTLS) and `SMTP_USER` = the full address. `MAIL_FROM` must be that address or an alias of the same mailbox.
+
+**The three DNS items** (GoDaddy, DNS tab of `shopconcierge.online`). Do not delete or "tidy up" any of them: mail then goes to spam.
+
+| Item | Where | Value now |
+|---|---|---|
+| SPF | one TXT record on `@` (never two) | `v=spf1 include:spf.protection.outlook.com include:secureserver.net -all` |
+| DKIM | two CNAME records, `selector1._domainkey` and `selector2._domainkey` | point to Microsoft (`*.dkim.mail.microsoft`); signing is switched on in the Microsoft Defender portal (Email authentication settings, DKIM) |
+| DMARC | one TXT record on `_dmarc` | `p=quarantine` (`v=DMARC1; p=quarantine; adkim=r; aspf=r; rua=mailto:...`) |
+
+History: the SPF record was GoDaddy's default (`v=spf1 include:secureserver.net -all`), which did not authorise Microsoft's servers, so with the `p=quarantine` DMARC policy mail could have been treated as spam. It was fixed on 2026-11-18.
+
+**Result of the check.** A test email sent from the server to a Gmail address landed in the inbox with SPF PASS, DKIM PASS (`d=shopconcierge.online`) and DMARC PASS.
+
+**How to re-check (2 minutes, after any DNS or mailbox change).**
+1. On the VPS: `cd /opt/shopconcierge && docker compose exec app python scripts/send_test_email.py YOU@gmail.com`
+2. In Gmail open the message, then the three dots, then *Show original*. The top box must say `SPF: PASS`, `DKIM: PASS` with `d=shopconcierge.online`, and `DMARC: PASS`. If one says FAIL or NEUTRAL, fix the matching DNS item above.
+3. From your laptop (read-only): `dig +short TXT shopconcierge.online`, `dig +short CNAME selector1._domainkey.shopconcierge.online`, `dig +short CNAME selector2._domainkey.shopconcierge.online`, `dig +short TXT _dmarc.shopconcierge.online`.
+
+**Microsoft is switching off password sign-in for SMTP.** Microsoft plans to disable Basic authentication for SMTP AUTH by default for existing tenants at the end of December 2026 (after the 11 December demo; check Microsoft's current notices, the date may change). Administrators can re-enable it. The app signs in to SMTP with the mailbox password, so if sending suddenly stops (the app log shows an email send failure, the contact form says "could not be sent", `send_test_email.py` reports `535 5.7.139 ... SmtpClientAuthentication is disabled for the Tenant`), do this in order:
+1. Re-enable it for the whole organisation (admin, PowerShell on your laptop): `Connect-ExchangeOnline`, then `Set-TransportConfig -SmtpClientAuthenticationDisabled $false`. Changes can take up to about 30 minutes.
+2. Re-enable *Authenticated SMTP* for the mailbox: Microsoft 365 admin center, Users, Active users, the mailbox, Mail, Manage email apps.
+3. If Security defaults are on (Microsoft Entra, Properties, Manage security defaults), they also block password sign-in. Turning them off lowers protection for the whole tenant: decide that deliberately.
+4. If Microsoft no longer allows it at all, the options are sending through OAuth (Microsoft Graph, needs a code change and an app registration) or a different sender service (new account, new DNS records). Both need the developer; until then the contact form shows an honest error, and lead alerts are still saved on the *Leads* page.
+
 ## Common problems
 
 | Symptom | What to do |

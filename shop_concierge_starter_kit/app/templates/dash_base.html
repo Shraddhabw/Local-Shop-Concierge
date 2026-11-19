@@ -8,7 +8,7 @@
 {% endfor %}
 </nav>
 {% if flash and flash.kind == "ok" %}
-<div class="flash ok" role="status" aria-live="polite" data-flash>
+<div class="flash ok" role="status" aria-live="polite" data-flash{% if flash.focus %} data-focus="1"{% endif %}>
   <span class="flash-icon" aria-hidden="true">&#10003;</span>
   <span class="flash-text"><span class="sr">Success: </span>{{ flash.text }}{% if flash.public %} <a href="/s/{{ shop.slug }}">View on your public page</a>{% endif %}</span>
   <button type="button" class="flash-close" aria-label="Close message" hidden>&times;</button>
@@ -21,4 +21,5 @@
 {% endif %}
 {% block content %}{% endblock %}
 {% endblock %}
-{% block scripts %}<script src="/static/flash.js" defer></script>{% endblock %}
+{% block scripts %}<script src="/static/flash.js" defer></script>
+<script src="/static/forms.js" defer></script>{% endblock %}

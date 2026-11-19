@@ -27,7 +27,7 @@
 </form>
 {% endfor %}
 <h2>Add a question</h2>
-<form method="post" action="/dashboard/faqs" class="row">
+<form method="post" action="/dashboard/faqs" class="row" data-add-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <label>Question <input name="question" value="{{ add.question or '' }}" required maxlength="300"></label>
   <label>Answer <textarea name="answer" required maxlength="1000">{{ add.answer or '' }}</textarea></label>

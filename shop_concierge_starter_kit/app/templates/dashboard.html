@@ -6,7 +6,13 @@
   <div class="stat"><span class="num">{{ leads }}</span> leads this week</div>
 </div>
 <p>Your public page: <a href="/s/{{ shop.slug }}">/s/{{ shop.slug }}</a></p>
-<p class="note">Add the chat to your own website: <code>&lt;script src="/widget.js?shop={{ shop.slug }}" defer&gt;&lt;/script&gt;</code> (use your full website address in front of /widget.js).</p>
+<section class="embed-box" aria-labelledby="embed-title">
+<h2 id="embed-title">Add the chat to your own website</h2>
+<label for="embed-snippet" class="sr">Chat snippet to copy</label>
+<textarea id="embed-snippet" class="snippet" readonly rows="2" spellcheck="false">{{ snippet }}</textarea>
+<p><button type="button" class="btn small" id="copy-embed" hidden>Copy</button> <span id="copy-status" class="note" role="status" aria-live="polite"></span></p>
+<p class="note">Paste this line just before &lt;/body&gt; on your website, then reload your site to see the chat bubble.</p>
+</section>
 <h2>Questions customers asked that I could not answer</h2>
 {% if unanswered %}
 <table>
@@ -20,3 +26,6 @@
 </table>
 {% else %}<p class="note">Nothing yet. Great!</p>{% endif %}
 {% endblock %}
+{% block scripts %}<script src="/static/flash.js" defer></script>
+<script src="/static/forms.js" defer></script>
+<script src="/static/copy.js" defer></script>{% endblock %}

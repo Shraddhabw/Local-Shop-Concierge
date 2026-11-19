@@ -16,7 +16,7 @@
 </form>
 {% endfor %}
 <h2>Add a service</h2>
-<form method="post" action="/dashboard/services" class="row">
+<form method="post" action="/dashboard/services" class="row" data-add-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <label>Name <input name="name" value="{{ add.name or '' }}" required maxlength="120"></label>
   <label>Price <input name="price" value="{{ add.price or '' }}" inputmode="numeric"></label>

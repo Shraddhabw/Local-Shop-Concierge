@@ -2,7 +2,7 @@
 {% block title %}Hours{% endblock %}
 {% block content %}
 <h1>Opening hours</h1>
-<form method="post" action="/dashboard/hours">
+<form method="post" action="/dashboard/hours" data-add-form>
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <table>
   {% for i, name, row in days %}

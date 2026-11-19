@@ -58,13 +58,13 @@ def money(shop, price):
     return engine._money(shop, price)
 
 
-def redirect_with_flash(request, url, text, kind="ok", public=False):
+def redirect_with_flash(request, url, text, kind="ok", public=False, focus=False):
     """303 redirect that carries one message, shown once on the next owner page."""
     from fastapi.responses import RedirectResponse
     response = RedirectResponse(url, status_code=303)
     st = request.app.state.settings
     response.set_cookie("flash", security.flash_pack(st.secret_key, request.cookies.get("session", ""),
-                                                     kind, text, public),
+                                                     kind, text, public, focus),
                         max_age=120, **security.COOKIE_OPTS)
     return response
 

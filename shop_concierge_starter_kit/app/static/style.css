@@ -34,3 +34,7 @@ textarea{width:100%;box-sizing:border-box;padding:.6rem;font-size:1rem;min-heigh
 .flash.hide{opacity:0}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.flash{transition:none}}
+.embed-box{margin:1.2rem 0;padding:.8rem 1rem;border:1px solid #e3e6ea;border-radius:10px;background:#fafbfc}
+.snippet{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;background:#fff;resize:vertical}
+.foot{max-width:640px;margin:0 auto 2rem;text-align:center;font-size:.9rem}.foot a{color:#1b1f24}
+button:disabled{opacity:.6;cursor:wait}

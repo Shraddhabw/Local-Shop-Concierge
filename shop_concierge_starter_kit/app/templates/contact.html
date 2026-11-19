@@ -2,7 +2,7 @@
 {% block title %}Contact us{% endblock %}
 {% block body %}
 <h1>Contact us</h1>
-{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if error %}<div class="flash err" role="alert" aria-live="assertive"><span class="flash-icon" aria-hidden="true">&#9888;</span><span class="flash-text"><span class="sr">Error: </span>{{ error }}</span></div>{% endif %}
 <form method="post" action="/contact">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <label>Your name <input name="name" required maxlength="100" value="{{ values.get('name', '') }}"></label>
@@ -12,3 +12,4 @@
   <button class="btn" type="submit">Send</button>
 </form>
 {% endblock %}
+{% block scripts %}<script src="/static/forms.js" defer></script>{% endblock %}

@@ -122,5 +122,20 @@ def send_email(to, subject, body, reply_to=None, echo=False):
     return True
 
 
+def send_email_now(to, subject, body, reply_to=None, echo=False):
+    """Like send_email, but waits for the result (used by the contact form so it can show an honest
+    error). Returns True if sent (or kept in memory mode), False if the message was rejected or
+    could not be delivered. Never raises."""
+    cfg = MailConfig()
+    if not cfg.configured:
+        return send_email(to, subject, body, reply_to, echo)       # memory mode: nothing leaves the machine
+    try:
+        msg = build_message(cfg, to, subject, body, reply_to)
+    except ValueError:
+        log.warning("email rejected: invalid address or header")
+        return False
+    return deliver(cfg, msg)
+
+
 class _Anon:
     mail_from = "noreply@invalid.example"

@@ -50,8 +50,9 @@ def _flash_sig(secret_key, session_value, payload):
     return hmac.new(secret_key.encode(), f"flash:{session_value}:{payload}".encode(), hashlib.sha256).hexdigest()
 
 
-def flash_pack(secret_key, session_value, kind, text, public=False):
-    body = json.dumps({"k": "err" if kind == "err" else "ok", "t": str(text)[:FLASH_MAX_TEXT], "p": bool(public)})
+def flash_pack(secret_key, session_value, kind, text, public=False, focus=False):
+    body = json.dumps({"k": "err" if kind == "err" else "ok", "t": str(text)[:FLASH_MAX_TEXT],
+                       "p": bool(public), "f": bool(focus)})
     payload = base64.urlsafe_b64encode(body.encode()).decode().rstrip("=")
     return f"{payload}.{_flash_sig(secret_key, session_value, payload)}"
 
@@ -64,6 +65,6 @@ def flash_unpack(secret_key, session_value, cookie_value):
             return None
         data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
         return {"kind": "err" if data["k"] == "err" else "ok", "text": str(data["t"])[:FLASH_MAX_TEXT],
-                "public": bool(data["p"])}
+                "public": bool(data["p"]), "focus": bool(data.get("f", False))}
     except (ValueError, KeyError, TypeError):
         return None

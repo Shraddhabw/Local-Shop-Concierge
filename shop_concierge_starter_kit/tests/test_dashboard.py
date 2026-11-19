@@ -376,3 +376,98 @@ def test_flash_static_js_exists_and_banner_works_without_js(env, owner):
     page = c.get("/dashboard/services").text
     assert 'hidden>&times;' in page or "hidden>" in page        # close button only revealed by JS
     assert "<script>" not in page and '<script src="/static/flash.js" defer>' in page
+
+
+# ---------------- forms after save, embed snippet ----------------
+def _add_form_html(page, heading):
+    """The HTML of the add form that follows <h2>heading</h2>."""
+    return page.split(heading, 1)[1].split("</form>", 1)[0]
+
+
+def test_add_success_clears_form_shows_banner_and_asks_for_focus(env, owner):
+    c, sid = owner
+    assert _svc(c, name="Facial", price="900").status_code == 303
+    page = c.get("/dashboard/services").text
+    assert "Service added: Facial" in page and 'data-focus="1"' in page          # JS puts the cursor in the first field
+    add = _add_form_html(page, "<h2>Add a service</h2>")
+    assert 'name="name" value=""' in add and 'name="price" value=""' in add     # form cleared
+    assert "data-add-form" in add
+    # FAQ and hours adds ask for focus too
+    c.post("/dashboard/faqs", data={"csrf_token": csrf(c, "/dashboard/faqs"), "question": "Parking?", "answer": "Yes", "keywords": ""})
+    page = c.get("/dashboard/faqs").text
+    assert "FAQ added" in page and 'data-focus="1"' in page
+    assert 'name="question" value=""' in _add_form_html(page, "<h2>Add a question</h2>")
+    c.post("/dashboard/hours", data=_hours_form(c))
+    page = c.get("/dashboard/hours").text
+    assert "Hours saved" in page and 'data-focus="1"' in page and "data-add-form" in page
+
+
+def test_edit_success_shows_the_saved_values_and_does_not_steal_focus(env, owner):
+    c, sid = owner
+    _svc(c)
+    c.get("/dashboard/services")
+    svc = repo.list_services(env, sid)[0]["id"]
+    r = c.post(f"/dashboard/services/{svc}", data={"csrf_token": csrf(c, "/dashboard/services"), "name": "Premium Cut",
+               "price": "450", "duration_min": "40", "description": "Wash included", "keywords": "cut"})
+    assert r.status_code == 303
+    page = c.get("/dashboard/services").text
+    assert "Service saved: Premium Cut" in page and 'data-focus' not in page
+    for saved in ('value="Premium Cut"', 'value="450"', 'value="40"', 'value="Wash included"'):
+        assert saved in page
+    assert repo.get_service(env, sid, svc)["price"] == 450
+
+
+def test_failed_save_keeps_exactly_what_was_typed(env, owner):
+    c, sid = owner
+    _svc(c)
+    c.get("/dashboard/services")
+    svc = repo.list_services(env, sid)[0]["id"]
+    # failed ADD
+    r = _svc(c, name="Spa day", price="12x", duration_min="30", description="Relax & unwind", keywords="spa")
+    assert r.status_code == 400 and 'role="alert"' in r.text and 'data-focus' not in r.text
+    add = _add_form_html(r.text, "<h2>Add a service</h2>")
+    for typed in ('value="Spa day"', 'value="12x"', 'value="30"', "Relax &amp; unwind", 'value="spa"'):
+        assert typed in add
+    # failed EDIT keeps the typed values on that row, the stored values stay untouched
+    r = c.post(f"/dashboard/services/{svc}", data={"csrf_token": csrf(c, "/dashboard/services"), "name": "Haircut v2",
+               "price": "3.5", "duration_min": "", "description": "", "keywords": ""})
+    assert r.status_code == 400 and 'value="Haircut v2"' in r.text and 'value="3.5"' in r.text
+    assert repo.get_service(env, sid, svc)["name"] == "Haircut"
+    # failed FAQ add and edit
+    r = c.post("/dashboard/faqs", data={"csrf_token": csrf(c, "/dashboard/faqs"), "question": "Open Sundays?",
+               "answer": "", "keywords": "sunday"})
+    assert r.status_code == 400 and 'role="alert"' in r.text
+    assert 'value="Open Sundays?"' in _add_form_html(r.text, "<h2>Add a question</h2>") and 'value="sunday"' in r.text
+    # failed HOURS save keeps the typed times
+    r = c.post("/dashboard/hours", data=_hours_form(c, open_2="21:30", close_2="08:15"))
+    assert r.status_code == 400 and 'value="21:30"' in r.text and 'value="08:15"' in r.text
+
+
+def test_double_submit_guard_is_a_static_file_not_inline(env, owner):
+    c, sid = owner
+    js = c.get("/static/forms.js")
+    assert js.status_code == 200 and "submitting" in js.text and "disabled = true" in js.text
+    for path in ("/dashboard", "/dashboard/services", "/dashboard/faqs", "/dashboard/hours"):
+        page = c.get(path).text
+        assert '<script src="/static/forms.js" defer></script>' in page
+        assert "<script>" not in page and "onclick=" not in page and "onsubmit=" not in page
+
+
+def test_embed_snippet_uses_base_url_and_own_slug_and_is_escaped(env, monkeypatch):
+    monkeypatch.setenv("BASE_URL", "https://shopconcierge.online")
+    sid = make_owner(env, "Glow Salon", "glow-salon", "a@example.com")
+    make_owner(env, "Other Shop", "other-shop", "b@example.com")
+    c = browser("tok-glow-salon")
+    page = c.get("/dashboard").text
+    assert "Add the chat to your own website" in page
+    assert ('&lt;script src=&#34;https://shopconcierge.online/widget.js?shop=glow-salon&#34; defer&gt;&lt;/script&gt;'
+            in page)
+    assert "other-shop" not in page.split('id="embed-snippet"', 1)[1].split("</textarea>", 1)[0]
+    assert 'readonly' in page and 'id="copy-embed"' in page and "hidden>Copy</button>" in page    # button shown only by JS
+    assert "Paste this line just before &lt;/body&gt; on your website, then reload your site to see the chat bubble." in page
+    assert '<script src="https://' not in page                                                      # never rendered as live HTML
+    assert c.get("/static/copy.js").status_code == 200 and "Copied" in c.get("/static/copy.js").text
+    # a hostile BASE_URL cannot break out of the box
+    monkeypatch.setenv("BASE_URL", 'https://x.test/"><b>x</b>&a=1')
+    page = browser("tok-glow-salon").get("/dashboard").text
+    assert "<b>x</b>" not in page and "&lt;b&gt;x&lt;/b&gt;" in page.split('id="embed-snippet"', 1)[1]

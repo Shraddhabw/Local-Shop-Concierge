@@ -168,7 +168,7 @@ def form(c, **over):
 def test_contact_form_sends_to_operator_with_reply_to(env, smtp, monkeypatch):   # noqa: F811
     monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
     r = form(browser())
-    assert r.status_code == 200 and "Thank you" in r.text
+    assert r.status_code == 200 and "Thanks, your message was sent" in r.text
     m = sent(smtp)[0]
     assert m["To"] == "ops@shop.example" and m["Reply-To"] == "visitor@example.com"
     assert "demo" in m.get_content()
@@ -177,7 +177,7 @@ def test_contact_form_sends_to_operator_with_reply_to(env, smtp, monkeypatch):  
 def test_contact_honeypot_sends_nothing(env, smtp, monkeypatch):   # noqa: F811
     monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
     r = form(browser(), website="http://spam.example")
-    assert r.status_code == 200 and "Thank you" in r.text and sent(smtp) == []
+    assert r.status_code == 200 and "Thanks, your message was sent" in r.text and sent(smtp) == []
 
 
 def test_contact_validation_csrf_and_injection(env, smtp, monkeypatch):   # noqa: F811
@@ -223,3 +223,66 @@ def test_send_test_email_script(smtp, monkeypatch, capsys):
     assert script.main(["x", "bad\naddress"]) == 2
     monkeypatch.delenv("SMTP_PASSWORD")
     assert script.main(["x", "me@example.com"]) == 2
+
+
+# ---- contact form: links, messages, failures keep the typed text ----
+def test_contact_is_linked_from_landing_and_every_footer(env, smtp):   # noqa: F811
+    c = browser()
+    landing = c.get("/").text
+    assert 'href="/contact"' in landing and 'href="https://example.com/contact"' in landing   # body link and footer
+    assert 'href="https://example.com/contact"' in c.get("/login").text
+    # a shop subdomain page links to the apex form (the form itself is 404 on shop subdomains)
+    sid = make_owner(env, "Glow Salon", "glow-salon", "a@example.com")
+    shop_page = browser(host="glow-salon.example.com").get("/")
+    assert shop_page.status_code == 200 and 'href="https://example.com/contact"' in shop_page.text
+
+
+def test_contact_success_message_and_destination(env, smtp, monkeypatch):   # noqa: F811
+    monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
+    r = form(browser(), message="Please call me about pricing.")
+    assert r.status_code == 200 and "Thanks, your message was sent" in r.text
+    assert [m["To"] for m in sent(smtp)] == ["ops@shop.example"]
+
+
+def test_contact_validation_error_keeps_typed_text(env, smtp, monkeypatch):   # noqa: F811
+    monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
+    r = form(browser(), name="Asha <b>", email="not-an-email", message="A long enough message here.")
+    assert r.status_code == 400 and 'role="alert"' in r.text and "valid email" in r.text
+    assert 'value="Asha &lt;b&gt;"' in r.text and "A long enough message here." in r.text
+    assert sent(smtp) == []
+
+
+def test_contact_send_failure_shows_error_and_keeps_text(env, smtp, monkeypatch):   # noqa: F811
+    monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
+    smtp.fail_with = [OSError("down"), OSError("down")]                  # first try and the one retry both fail
+    r = form(browser(), message="Please do call me back about the demo.")
+    assert r.status_code == 503 and "could not be sent" in r.text and 'role="alert"' in r.text
+    assert "Thanks, your message was sent" not in r.text
+    assert "Please do call me back about the demo." in r.text and 'value="visitor@example.com"' in r.text
+    assert PASSWORD not in r.text
+
+
+def test_contact_without_recipient_never_claims_success(env, smtp, monkeypatch):   # noqa: F811
+    monkeypatch.delenv("CONTACT_RECIPIENT", raising=False)
+    r = form(browser())
+    assert r.status_code == 503 and "Thanks, your message was sent" not in r.text and sent(smtp) == []
+
+
+def test_contact_bad_csrf_and_rate_limit_keep_text(tmp_path, monkeypatch, smtp):   # noqa: F811
+    from app import db
+    monkeypatch.setenv("SECRET_KEY", "k" * 40)
+    monkeypatch.setenv("BASE_DOMAIN", "example.com")
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "t.db"))
+    monkeypatch.setenv("RATE_LIMITS_ENABLED", "true")
+    monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
+    db.init_db(db.connect())
+    c = browser()
+    r = c.post("/contact", data={"name": "Asha", "email": "a@example.com", "message": "Keep this text please.",
+                                 "website": "", "csrf_token": "forged"})
+    assert r.status_code == 400 and "Keep this text please." in r.text and "expired" in r.text
+    assert sent(smtp) == []
+    for _ in range(3):
+        assert form(c).status_code == 200
+    r = form(c, message="Rate limited but kept text.")
+    assert r.status_code == 429 and "Rate limited but kept text." in r.text and "Too many" in r.text
+    assert len(sent(smtp)) == 3                                                      # nothing extra was sent

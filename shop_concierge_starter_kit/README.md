@@ -126,6 +126,21 @@ Set in `.env` (never committed; `.env.example` lists them all). Compose reads `.
 
 The stack is `docker compose up -d --build` (app, Caddy, nightly backup) on an Ubuntu VPS. Prerequisites and the by-hand steps (domain, DNS, mailbox, `.env`) are in the T10 checklist in [TASKS.md](TASKS.md); helper scripts are in `scripts/` (`server_bootstrap.sh`, `deploy.sh`, `check_live.sh`, `send_test_email.py`, `seed.py`, `backup_db.py`). Day-to-day running: [OPERATIONS.md](OPERATIONS.md). Presenting it: [DEMO.md](DEMO.md).
 
+## Requirements and evidence
+
+Each requirement, where it is met in this repo, and how to check it. Items in `[brackets]` are screenshots or outputs the owner adds; nothing in brackets has been captured yet.
+
+| Requirement | Where it is met | How to check / evidence |
+|---|---|---|
+| Live app in Docker on a GoDaddy VPS | `Dockerfile` (non-root, one worker), `docker-compose.yml` (app, Caddy, nightly backup), `scripts/server_bootstrap.sh`, `scripts/deploy.sh`. Deployed by hand to a GoDaddy Gen4 Linux VPS (Ubuntu) on 2026-11-18. | On the VPS: `cd /opt/shopconcierge && docker compose ps` (app and caddy `healthy`, backup `Up`). `[screenshot: docker compose ps on the VPS]` |
+| Own domain with DNS pointing at the app | `shopconcierge.online`, registered at GoDaddy. DNS (GoDaddy): A record for `@` and for `*` (shop subdomains) to the VPS address; `www` is a CNAME to the apex. The Microsoft 365 mail records stay in the same zone. | `dig +short A shopconcierge.online`, `dig +short A demo-salon.shopconcierge.online`. `[screenshot: GoDaddy DNS records]` |
+| HTTPS via Caddy and Let's Encrypt | `Caddyfile`: automatic certificates for the domain and `www`; on-demand certificates for shop subdomains, issued only if `/internal/tls-ask` confirms the shop exists; HSTS and other security headers. | `DOMAIN=shopconcierge.online ./scripts/check_live.sh` (HTTPS, redirect, HSTS, a shop subdomain). `[screenshot: padlock on https://shopconcierge.online]` |
+| Email on the domain | A **Microsoft 365 Email Essentials** mailbox (bought through GoDaddy, 1-month term; not Titan), e.g. `shraddhawagh@shopconcierge.online`. Sent via `smtp.office365.com:587` (STARTTLS) by `app/mailer.py`. SPF, DKIM and DMARC are set up (see OPERATIONS.md, "Email deliverability"). | `docker compose exec app python scripts/send_test_email.py you@gmail.com`, then Gmail "Show original" (SPF, DKIM, DMARC PASS). Mailbox list: `gddy email list` `[paste output]`. `[screenshot: Gmail "Show original"]` |
+| Contact form delivering to the mailbox | `GET/POST /contact` in `app/routers/contact.py`, linked from the landing page and the footer; sends to `CONTACT_RECIPIENT`, with a honeypot, CSRF and a rate limit; shows an error instead of success if sending fails. Tested with SMTP mocked in `tests/test_email.py`. | Send a message at `https://shopconcierge.online/contact`. `[screenshot: the message in the mailbox]` |
+| No secrets in code or repo | Configuration only through environment variables (`app/config.py`, `.env.example` lists them, the real `.env` exists only on the server). `.env`, databases, backups and keys are in `.gitignore` and `.dockerignore`; `scripts/scan_secrets.py` scans files and git history; `SECURITY.md` has the review. | `python scripts/scan_secrets.py` (exit code 0 means nothing found); `git check-ignore .env`. |
+
+Tests and evals: `python -m pytest -q` and `python eval/run_evals.py` (with `AI_ENABLED=false`) both run without network access or real email.
+
 ## Project layout
 
 ```

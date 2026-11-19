@@ -46,10 +46,17 @@ def _faqs(request, conn, user, status=200, error=None, draft=None, add=None, edi
                  faqs=rows, active="faqs", draft=draft, add=add or {})
 
 
+def embed_snippet(base_url, slug):
+    """The one line an owner pastes into their own website (escaped by Jinja where it is shown)."""
+    return f'<script src="{base_url}/widget.js?shop={slug}" defer></script>'
+
+
 @router.get("", response_class=HTMLResponse)
 def overview(request: Request, user=Depends(require_owner), conn=Depends(get_conn)):
     sid = user["shop_id"]
-    return _page(request, conn, user, "dashboard.html", active="home",
+    shop = repo.get_shop(conn, sid)
+    snippet = embed_snippet(request.app.state.settings.base_url, shop["slug"])
+    return _page(request, conn, user, "dashboard.html", active="home", snippet=snippet,
                  chats=repo.count_chats_since(conn, sid), leads=repo.count_leads_since(conn, sid),
                  unanswered=repo.list_unanswered(conn, sid, 5))
 
@@ -69,7 +76,7 @@ def service_add(request: Request, name: str = Form(""), price: str = Form(""),
         repo.add_service(conn, user["shop_id"], name, _int(price), _int(duration_min), description, keywords)
     except ValueError as e:
         return _services(request, conn, user, 400, str(e), add=typed)
-    return redirect_with_flash(request, "/dashboard/services", f"Service added: {name.strip()[:80]}", public=True)
+    return redirect_with_flash(request, "/dashboard/services", f"Service added: {name.strip()[:80]}", public=True, focus=True)
 
 
 @router.post("/services/{service_id}", **POST)
@@ -115,7 +122,7 @@ def faq_add(request: Request, question: str = Form(""), answer: str = Form(""), 
     if from_unanswered.isdigit():                 # the owner approved the draft: mark it resolved
         repo.resolve_unanswered(conn, sid, int(from_unanswered), faq_id)
         return redirect_with_flash(request, "/dashboard/faqs", "FAQ approved and added")
-    return redirect_with_flash(request, "/dashboard/faqs", f"FAQ added: {question.strip()[:80]}")
+    return redirect_with_flash(request, "/dashboard/faqs", f"FAQ added: {question.strip()[:80]}", focus=True)
 
 
 @router.post("/faqs/{faq_id}", **POST)
@@ -184,7 +191,7 @@ async def hours_save(request: Request, user=Depends(require_owner), conn=Depends
         typed = {d: (str(form.get(f"open_{d}", "")), str(form.get(f"close_{d}", "")), bool(form.get(f"closed_{d}")))
                  for d in range(7)}
         return _hours(request, conn, user, 400, str(e), typed=typed)
-    return redirect_with_flash(request, "/dashboard/hours", "Hours saved")
+    return redirect_with_flash(request, "/dashboard/hours", "Hours saved", focus=True)
 
 
 # ---- leads and profile ----

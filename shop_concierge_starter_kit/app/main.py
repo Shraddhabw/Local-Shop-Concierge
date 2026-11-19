@@ -36,6 +36,7 @@ def create_app(settings=None):
     app.state.templates = Jinja2Templates(directory=str(BASE / "templates"))
     from .web import money
     app.state.templates.env.globals["money"] = money
+    app.state.templates.env.globals["base_url"] = settings.base_url      # absolute links that also work on shop subdomains
     on = settings.rate_limits_enabled
     app.state.limits = {
         "register": RateLimiter(5, 3600, on), "login_ip": RateLimiter(10, 900, on),
