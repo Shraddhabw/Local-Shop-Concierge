@@ -286,3 +286,15 @@ def test_contact_bad_csrf_and_rate_limit_keep_text(tmp_path, monkeypatch, smtp):
     r = form(c, message="Rate limited but kept text.")
     assert r.status_code == 429 and "Rate limited but kept text." in r.text and "Too many" in r.text
     assert len(sent(smtp)) == 3                                                      # nothing extra was sent
+
+
+def test_contact_success_and_error_pages_keep_the_back_to_home_button(env, smtp, monkeypatch):   # noqa: F811
+    monkeypatch.setenv("CONTACT_RECIPIENT", "ops@shop.example")
+    c = browser()
+    ok = form(c, message="Please call me about pricing.")
+    assert ok.status_code == 200 and "Thanks, your message was sent" in ok.text
+    for r in (ok, form(c, email="bad"), form(c, website="spam")):          # success, validation error, honeypot
+        assert '<p class="home-link"><a href="/">' in r.text and "Back to home" in r.text
+        assert r.text.index("home-link") < r.text.index("<h1>")
+    smtp.fail_with = [OSError("down"), OSError("down")]
+    assert "Back to home" in form(c, message="Another long enough message.").text      # send failure page
